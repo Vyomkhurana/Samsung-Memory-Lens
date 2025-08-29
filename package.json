@@ -11,12 +11,14 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@deepgram/sdk": "^4.11.2",
     "body-parser": "^2.2.0",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "dotenv": "^17.2.1",
     "ejs": "^3.1.10",
     "express": "^5.1.0",
+    "multer": "^2.0.2",
     "nodemon": "^3.1.10"
   }
 }
