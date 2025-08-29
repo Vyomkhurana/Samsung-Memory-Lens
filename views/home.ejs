@@ -1,99 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Memory Lens</title>
-  <link rel="stylesheet" href="/style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Memory Lens</title>
+    <link rel="stylesheet" href="/style.css" />
 </head>
-  <body>
-    <%- include('partials/header') %>
+<body>
+<%- include('partials/header') %>
 
-    <div class="container">
-       
-
-      <table cellpadding="7">
+<div class="container">
+    <!-- 📌 Features Section -->
+    <table cellpadding="7">
         <tr>
             <td colspan="2">
-                 <div class="card">
-    <div class="card-header">
-        <b>The Problem: Lost Memories in a Sea of Data</b>
-
-    </div>
-  <div class="card-body">
-  
-   
-        <p align="justify">Modern devices capture thousands of photos and videos
-daily. While this creates a rich personal archive, retrieving
-specific memories is time-consuming and incredibly
-difficult.
-Current Al assistants and gallery apps lack the contextual
-intelligence needed to make this data truly useful.</p>
-      
-  </div>
-</div>
+                <div class="card">
+                    <div class="card-header">
+                        <b>The Problem: Lost Memories in a Sea of Data</b>
+                    </div>
+                    <div class="card-body">
+                        <p align="justify">
+                            Modern devices capture thousands of photos and videos daily. While this creates a rich personal archive, retrieving specific memories is time-consuming and incredibly difficult. Current AI assistants and gallery apps lack the contextual intelligence needed to make this data truly useful.
+                        </p>
+                    </div>
+                </div>
             </td>
         </tr>
-        <tr>
-          <td>
-            <div class="card">
-              <div class="card-header">
-                <i class="bi bi-card-image"></i>
-              </div>
-              <div class="card-body">
-                <h5 class="card-title">Secure Gallery Access</h5>
-                <p class="card-text">
-                  PWA securely accesses user's existing gallery; no manual
-                  uploads required.
-                </p>
-              </div>
-            </div>
-          </td>
-          <td>
-            <div class="card">
-              <div class="card-header">
-                <i class="bi bi-search"></i>
-              </div>
-              <div class="card-body">
-                <h5 class="card-title">Semantic Search</h5>
-                <p class="card-text">
-                  Natural language queries leverage Al embeddings for highly
-                  accurate, contextual search results.
-                </p>
-              </div>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <div class="card">
-              <div class="card-header"><i class="bi bi-claude"></i></div>
-              <div class="card-body">
-                <h5 class="card-title">Al-Powered Insights</h5>
-                <p class="card-text">
-                  OCR extracts text, Al captioning describes scenes, and face
-                  clustering identifies repeated encounters, all designed with
-                  privacy in mind.
-                </p>
-              </div>
-            </div>
-          </td>
-          <td>
-            <div class="card">
-              <div class="card-header"><i class="bi bi-memory"></i></div>
-              <div class="card-body">
-                <h5 class="card-title">Contextual Recall</h5>
-                <p class="card-text">
-                  Automated day summaries and proactive contextual nudges bring
-                  forgotten memories and information back to you.
-                </p>
-              </div>
-            </div>
-          </td>
-        </tr>
-      </table>
-    </div>
 
-    <%- include('partials/footer') %>
-  </body>
+        <tr>
+            <td>
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-card-image"></i>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">Secure Gallery Access</h5>
+                        <p class="card-text">
+                            PWA securely accesses user's existing gallery; no manual uploads required.
+                        </p>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-search"></i>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">Semantic Search</h5>
+                        <p class="card-text">
+                            Natural language queries leverage AI embeddings for highly accurate, contextual search results.
+                        </p>
+                    </div>
+                </div>
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-claude"></i></div>
+                    <div class="card-body">
+                        <h5 class="card-title">AI-Powered Insights</h5>
+                        <p class="card-text">
+                            OCR extracts text, AI captioning describes scenes, and face clustering identifies repeated encounters, all designed with privacy in mind.
+                        </p>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-memory"></i></div>
+                    <div class="card-body">
+                        <h5 class="card-title">Contextual Recall</h5>
+                        <p class="card-text">
+                            Automated day summaries and proactive contextual nudges bring forgotten memories and information back to you.
+                        </p>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<%- include('partials/footer') %>
+</body>
 </html>

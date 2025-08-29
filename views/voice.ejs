@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Voice Transcription (VAD)</title>
+    <style>
+        body { font-family: system-ui, -apple-system, Roboto, "Segoe UI", Arial; padding: 20px; }
+        button { padding: 10px 14px; margin-right: 8px; }
+        #status { margin-top: 12px; color: #444; }
+        #transcript { margin-top: 16px; font-weight: 600; }
+    </style>
+</head>
+<body>
+<h1>🎤 Voice to Text (Auto-stop on silence)</h1>
+
+<button id="listenBtn">Start Listening</button>
+<button id="cancelBtn" disabled>Cancel</button>
+
+<div id="status">Press <b>Start Listening</b> and speak. Recording will auto-stop after silence.</div>
+<div id="transcript"></div>
+
+<script>
+    (() => {
+        const listenBtn = document.getElementById('listenBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const statusEl = document.getElementById('status');
+        const transcriptEl = document.getElementById('transcript');
+
+        // Settings
+        const RMS_START_THRESHOLD = 0.02;  // sensitivity to detect speech
+        const SILENCE_TIMEOUT_MS = 1500;   // stop after this much silence
+        const MAX_LISTEN_MS = 30000;       // safety timeout
+
+        // State
+        let mediaStream, audioCtx, analyser, mediaRecorder;
+        let rafId, audioChunks = [], lastSpokenAt = 0, recordingStarted = false, maxListenTimeout;
+
+        /** Reset everything for next round */
+        function reset() {
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            if (audioCtx && audioCtx.state !== 'closed') audioCtx.close();
+            if (rafId) cancelAnimationFrame(rafId);
+            if (maxListenTimeout) clearTimeout(maxListenTimeout);
+
+            try { if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch {}
+            mediaStream = audioCtx = analyser = mediaRecorder = null;
+
+            audioChunks = [];
+            recordingStarted = false;
+            listenBtn.disabled = false;
+            cancelBtn.disabled = true;
+        }
+
+        /** Send blob to backend for transcription */
+        async function sendAudio(blob) {
+            try {
+                statusEl.textContent = 'Uploading audio...';
+                const form = new FormData();
+                form.append('audio', blob, 'voice.webm');
+                const res = await fetch('/transcribe', { method: 'POST', body: form });
+                const data = await res.json();
+                transcriptEl.textContent = data.transcript || 'No speech detected.';
+                statusEl.textContent = 'Ready — press Start again.';
+            } catch (err) {
+                console.error(err);
+                statusEl.textContent = '❌ Error sending audio.';
+            } finally {
+                reset();
+            }
+        }
+
+        /** Start listening + VAD */
+        listenBtn.addEventListener('click', async () => {
+            listenBtn.disabled = true;
+            cancelBtn.disabled = false;
+            transcriptEl.textContent = '';
+            statusEl.textContent = 'Listening...';
+
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            } catch {
+                statusEl.textContent = '❌ Microphone access denied.';
+                reset();
+                return;
+            }
+
+            // Audio analysis setup
+            audioCtx = new AudioContext();
+            analyser = audioCtx.createAnalyser();
+            audioCtx.createMediaStreamSource(mediaStream).connect(analyser);
+            analyser.fftSize = 2048;
+            const buffer = new Float32Array(analyser.fftSize);
+
+            // Recorder setup
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                ? 'audio/webm;codecs=opus'
+                : 'audio/webm';
+            mediaRecorder = new MediaRecorder(mediaStream, { mimeType });
+            mediaRecorder.ondataavailable = e => e.data.size && audioChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(audioChunks, { type: mimeType });
+                sendAudio(blob);
+            };
+
+            // Safety timeout
+            maxListenTimeout = setTimeout(() => {
+                if (!recordingStarted) {
+                    statusEl.textContent = 'No speech detected.';
+                    reset();
+                } else {
+                    mediaRecorder.stop();
+                }
+            }, MAX_LISTEN_MS);
+
+            // Voice activity loop
+            function vadLoop() {
+                analyser.getFloatTimeDomainData(buffer);
+                const rms = Math.hypot(...buffer) / Math.sqrt(buffer.length);
+
+                if (rms > RMS_START_THRESHOLD) {
+                    lastSpokenAt = Date.now();
+                    if (!recordingStarted) {
+                        audioChunks = [];
+                        mediaRecorder.start();
+                        recordingStarted = true;
+                        statusEl.textContent = 'Recording... (auto-stop on silence)';
+                    }
+                }
+
+                if (recordingStarted && Date.now() - lastSpokenAt > SILENCE_TIMEOUT_MS) {
+                    mediaRecorder.stop();
+                    return;
+                }
+
+                rafId = requestAnimationFrame(vadLoop);
+            }
+            vadLoop();
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            statusEl.textContent = 'Cancelled.';
+            reset();
+            transcriptEl.textContent = '';
+        });
+
+        window.addEventListener('beforeunload', reset);
+    })();
+</script>
+</body>
+</html>
