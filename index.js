@@ -109,10 +109,15 @@ app.get("/callback", async (req, res) => {
 
 app.get("/logout", (req, res) => {
   req.session.destroy(() => {
-    const logoutUrl = `https://ap-south-15zqkoyhoa.auth.ap-south-1.amazoncognito.com/logout?client_id=29354hv0epi6galq8bhfhttast&logout_uri=http://localhost:3000/`;
+    const baseUrl = process.env.NODE_ENV === "production" 
+      ? "https://samsung-memory-lens.onrender.com"
+      : "http://localhost:3000";
+
+    const logoutUrl = `https://ap-south-15zqkoyhoa.auth.ap-south-1.amazoncognito.com/logout?client_id=${process.env.aws_cognito_client_id}&logout_uri=${baseUrl}/`;
     res.redirect(logoutUrl);
   });
 });
+
 
 // Voice page route
 app.get("/voice", (req, res) => {
