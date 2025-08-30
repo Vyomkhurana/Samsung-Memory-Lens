@@ -27,7 +27,11 @@ async function initializeClient() {
   client = new issuer.Client({
     client_id: process.env.aws_cognito_client_id,
     client_secret: process.env.aws_cognito_client_secret,
-    redirect_uris: ["http://localhost:3000/callback"], // ✅ FIXED
+   redirect_uris: [
+  
+  "https://samsung-memory-lens.onrender.com/callback"
+],
+ // ✅ FIXED
     response_types: ["code"],
   });
 }
@@ -77,8 +81,15 @@ app.get("/login", (req, res) => {
 app.get("/callback", async (req, res) => {
   try {
     const params = client.callbackParams(req);
+
+    // dynamically build redirect URI depending on where the request came from
+    const redirectUri =
+      req.hostname === "localhost"
+        ? "http://localhost:3000/callback"
+        : "https://samsung-memory-lens.onrender.com/callback";
+
     const tokenSet = await client.callback(
-      "http://localhost:3000/callback",
+      redirectUri,
       params,
       { nonce: req.session.nonce, state: req.session.state }
     );
@@ -86,12 +97,13 @@ app.get("/callback", async (req, res) => {
     const userInfo = await client.userinfo(tokenSet.access_token);
     req.session.userInfo = userInfo;
 
-    res.redirect("/dashboard"); // ✅ Now go to protected page
+    res.redirect("/dashboard");
   } catch (err) {
     console.error("Callback error:", err);
     res.redirect("/");
   }
 });
+
 
 // Helper function to get the path from the URL. Example: "http://localhost/hello" returns "/hello"
 
