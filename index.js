@@ -73,33 +73,7 @@ app.get("/dashboard", checkAuth, (req, res) => {
   });
 });
 
-async function analyzeBucketImages(bucketName) {
-  const objects = await s3.listObjectsV2({ Bucket: bucketName }).promise();
-  const results = [];
 
-  for (const obj of objects.Contents) {
-    if (!obj.Key.match(/\.(jpg|jpeg|png)$/i)) continue; // only images
-
-    const params = {
-      Image: {
-        S3Object: { Bucket: bucketName, Name: obj.Key },
-      },
-      MaxLabels: 10,
-      MinConfidence: 70,
-    };
-
-    const labelsResponse = await rekognition.detectLabels(params).promise();
-    const labels = labelsResponse.Labels.map(l => l.Name.toLowerCase());
-
-    results.push({
-      key: obj.Key,
-      url: `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${obj.Key}`,
-      tags: labels,
-    });
-  }
-
-  return results;
-}
 
 
 
@@ -146,7 +120,6 @@ app.get("/callback", async (req, res) => {
 });
 
 
-// Helper function to get the path from the URL. Example: "http://localhost/hello" returns "/hello"
 
 app.get("/logout", (req, res) => {
   req.session.destroy(() => {
@@ -169,7 +142,7 @@ app.get("/voice", (req, res) => {
 app.get("/get-deepgram-key", (req, res) => {
   res.json({ key: process.env.DEEPGRAM_API_KEY || "No Key Found" });
 });
-// ✅ Route to transcribe audio
+
 app.post("/transcribe", upload.single("audio"), async (req, res) => {
   try {
     // 1. Transcribe audio
@@ -186,16 +159,16 @@ app.post("/transcribe", upload.single("audio"), async (req, res) => {
     const transcript =
       data?.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
 
-    // 2. Tokenize transcript
-    const tokens = tokenize(transcript);
+    // 2. Tokenize transcript (lowercased for matching)
+    const tokens = tokenize(transcript).map(t => t.toLowerCase());
 
-    // 3. Analyze all S3 images
-    const bucketName = "samsungmemorylens"; // change if needed
+    // 3. Analyze ALL S3 images
+    const bucketName = "samsungmemorylens"; 
     const analyzedImages = await analyzeBucketImages(bucketName);
 
-    // 4. Filter images by matching tokens with tags
+    // 4. Filter by label-token overlap
     const matchedImages = analyzedImages.filter(img =>
-      img.tags.some(tag => tokens.includes(tag))
+      img.tags.some(tag => tokens.some(token => tag.includes(token) || token.includes(tag)))
     );
 
     // 5. Respond
@@ -204,10 +177,43 @@ app.post("/transcribe", upload.single("audio"), async (req, res) => {
     console.log("Tokens:", tokens);
     console.log("Matched Images:", matchedImages.map(img => img.key));
   } catch (err) {
-    console.error("Error in /search-images:", err);
+    console.error("Error in /transcribe:", err);
     res.status(500).json({ error: "Failed to process request" });
   }
 });
+
+
+async function analyzeBucketImages(bucketName) {
+  const objects = await s3.listObjectsV2({ Bucket: bucketName }).promise();
+  const images = objects.Contents.filter(obj => /\.(jpg|jpeg|png)$/i.test(obj.Key));
+
+  // Run all Rekognition calls in parallel
+  const results = await Promise.all(
+    images.map(async obj => {
+      try {
+        const params = {
+          Image: { S3Object: { Bucket: bucketName, Name: obj.Key } },
+          MaxLabels: 10,
+          MinConfidence: 70,
+        };
+        const labelsResponse = await rekognition.detectLabels(params).promise();
+        const labels = labelsResponse.Labels.map(l => l.Name.toLowerCase());
+
+        return {
+          key: obj.Key,
+          url: `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${obj.Key}`,
+          tags: labels,
+        };
+      } catch (e) {
+        console.error("Rekognition failed for", obj.Key, e);
+        return null; // skip failed images
+      }
+    })
+  );
+
+  return results.filter(Boolean);
+}
+
 
 function tokenize(sentence) {
   return sentence.match(/\b\w+\b/g);
