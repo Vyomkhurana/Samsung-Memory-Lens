@@ -163,26 +163,31 @@ app.post("/transcribe", upload.single("audio"), async (req, res) => {
     const tokens = tokenize(transcript).map(t => t.toLowerCase());
 
     // 3. Analyze ALL S3 images
-    const bucketName = "samsungmemorylens"; 
+    const bucketName = "samsungmemorylens";
     const analyzedImages = await analyzeBucketImages(bucketName);
 
     // 4. Filter by label-token overlap
     const matchedImages = analyzedImages.filter(img =>
-      img.tags.some(tag => tokens.some(token => tag.includes(token) || token.includes(tag)))
+      img.tags.some(tag =>
+        // Improved logic: check if any token is a word within a tag or vice-versa
+        tag.split(' ').some(tagWord =>
+          tokens.some(token => tagWord === token)
+        )
+      )
     );
 
     // 5. Respond
     res.json({ transcript, tokens, matchedImages });
     console.log("Transcript:", transcript);
     console.log("Tokens:", tokens);
-    console.log("Matched Images:", matchedImages.map(img => img.key));
+    console.log("Matched Images:", matchedImages.map(img => img.url));
   } catch (err) {
     console.error("Error in /transcribe:", err);
     res.status(500).json({ error: "Failed to process request" });
   }
 });
 
-
+// The analyzeBucketImages function does not require any changes.
 async function analyzeBucketImages(bucketName) {
   const objects = await s3.listObjectsV2({ Bucket: bucketName }).promise();
   const images = objects.Contents.filter(obj => /\.(jpg|jpeg|png)$/i.test(obj.Key));
