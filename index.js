@@ -6,6 +6,7 @@ import session from "express-session";
 import { Issuer, generators } from "openid-client";
 import AWS from "aws-sdk";
 
+
 dotenv.config();
 
 const app = express();
