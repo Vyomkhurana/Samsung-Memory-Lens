@@ -160,7 +160,7 @@ app.post("/transcribe", upload.single("audio"), async (req, res) => {
       data?.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
 
     // 2. Tokenize transcript (lowercased for matching)
-    const tokens = tokenize(transcript).map(t => t.toLowerCase());
+    const tokens = transcript.toLowerCase().split(/\s+/).filter(Boolean);
 
     // 3. Analyze ALL S3 images
     const bucketName = "samsungmemorylens";
@@ -168,12 +168,12 @@ app.post("/transcribe", upload.single("audio"), async (req, res) => {
 
     // 4. Filter by label-token overlap
     const matchedImages = analyzedImages.filter(img =>
-      img.tags.some(tag =>
-        // Improved logic: check if any token is a word within a tag or vice-versa
-        tag.split(' ').some(tagWord =>
-          tokens.some(token => tagWord === token)
-        )
-      )
+      img.tags.some(tag => {
+        // Handle multi-word tags by splitting them into individual words
+        const tagWords = tag.split(' ');
+        // Check if any word in the tag is an exact match for a token
+        return tagWords.some(tagWord => tokens.includes(tagWord));
+      })
     );
 
     // 5. Respond
@@ -187,12 +187,10 @@ app.post("/transcribe", upload.single("audio"), async (req, res) => {
   }
 });
 
-// The analyzeBucketImages function does not require any changes.
 async function analyzeBucketImages(bucketName) {
   const objects = await s3.listObjectsV2({ Bucket: bucketName }).promise();
   const images = objects.Contents.filter(obj => /\.(jpg|jpeg|png)$/i.test(obj.Key));
 
-  // Run all Rekognition calls in parallel
   const results = await Promise.all(
     images.map(async obj => {
       try {
@@ -211,7 +209,7 @@ async function analyzeBucketImages(bucketName) {
         };
       } catch (e) {
         console.error("Rekognition failed for", obj.Key, e);
-        return null; // skip failed images
+        return null;
       }
     })
   );
