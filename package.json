@@ -12,6 +12,7 @@
   "type": "module",
   "dependencies": {
     "@deepgram/sdk": "^4.11.2",
+    "aws-sdk": "^2.1692.0",
     "body-parser": "^2.2.0",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
