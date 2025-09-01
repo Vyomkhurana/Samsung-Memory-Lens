@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import session from "express-session";
 import { Issuer, generators } from "openid-client";
 import AWS from "aws-sdk";
+import { detectLabelsInBucket } from "./rekognition.js"
 
 
 dotenv.config();
@@ -39,7 +40,7 @@ async function initializeClient() {
     client_id: process.env.aws_cognito_client_id,
     client_secret: process.env.aws_cognito_client_secret,
    redirect_uris: [
-     "https://samsung-memory-lens.onrender.com/callback"
+     "http://localhost:3000/callback"
    ],
     response_types: ["code"],
   });
@@ -187,6 +188,18 @@ app.post("/transcribe", upload.single("audio"), async (req, res) => {
     res.status(500).json({ error: "Failed to process request" });
   }
 });
+
+app.get("/analyze-bucket", async (req, res) => {
+  try {
+    const results = await detectLabelsInBucket("samsungmemorylens");
+    res.json(results);
+  } catch (err) {
+    console.error("❌ Analyze error:", err);   // 👈 Add this
+    res.status(500).json({ error: "Failed to analyze images" });
+  }
+});
+
+
 
 async function analyzeBucketImages(bucketName) {
   const objects = await s3.listObjectsV2({ Bucket: bucketName }).promise();
