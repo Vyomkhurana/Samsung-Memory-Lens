@@ -34,7 +34,7 @@
         };
 
         mediaRecorder.start();
-        recordBtn.innerHTML = 'Listening...<i class="bi bi-ear-fill"></i>';
+        recordBtn.innerHTML = '<i class="bi bi-ear-fill"></i>';
 
         // 🎯 Setup silence detection
         audioContext = new AudioContext();
@@ -51,7 +51,7 @@
     function stopRecording() {
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
             mediaRecorder.stop();
-            recordBtn.innerHTML = '<i class="bi bi-mic-fill"></i> Start Speaking';
+            recordBtn.innerHTML = '<i class="bi bi-mic-fill"></i>';
             if (audioContext) audioContext.close();
         }
     }
@@ -83,3 +83,9 @@
             stopRecording();
         }
     });
+
+
+    document.getElementById('recordBtn').addEventListener('click', function() {
+    this.classList.toggle('pulse');
+    // You can add logic here to start or stop recording
+});
