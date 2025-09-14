@@ -12,6 +12,9 @@
   "type": "module",
   "dependencies": {
     "@deepgram/sdk": "^4.11.2",
+    "@google/generative-ai": "^0.24.1",
+    "@qdrant/js-client-rest": "^1.15.1",
+    "@xenova/transformers": "^2.17.2",
     "aws-sdk": "^2.1692.0",
     "body-parser": "^2.2.0",
     "bootstrap": "^5.3.8",
@@ -22,6 +25,8 @@
     "express-session": "^1.18.2",
     "multer": "^2.0.2",
     "nodemon": "^3.1.10",
-    "openid-client": "^5.7.1"
+    "openai": "^5.20.2",
+    "openid-client": "^5.7.1",
+    "python-shell": "^5.0.0"
   }
 }
