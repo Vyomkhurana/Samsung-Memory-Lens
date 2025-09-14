@@ -42,13 +42,12 @@ async function buildEmbedding(text) {
   return new Promise((resolve, reject) => {
     let result = "";
 
-  const pyshell = new PythonShell("embeddings.py", {
-  mode: "text",
-  pythonOptions: ["-u"],
-  pythonPath: "C:\\Users\\gurum\\AppData\\Local\\Programs\\Python\\Python310\\python.exe", // 👈 full path to python.exe
-});
-
-
+    const pyshell = new PythonShell("embeddings.py", {
+      mode: "text",
+      pythonOptions: ["-u"],
+      pythonPath:
+        "C:\\Users\\gurum\\AppData\\Local\\Programs\\Python\\Python310\\python.exe", // 👈 full path to python.exe
+    });
 
     pyshell.send(text);
 
@@ -89,7 +88,9 @@ async function processAndStoreImageVectors(bucketName) {
     // 2. Celebrities
     let celebrities = [];
     try {
-      const celebData = await rekognition.recognizeCelebrities(params).promise();
+      const celebData = await rekognition
+        .recognizeCelebrities(params)
+        .promise();
       celebrities = celebData.CelebrityFaces.map((c) => c.Name.toLowerCase());
     } catch {}
 
@@ -97,9 +98,7 @@ async function processAndStoreImageVectors(bucketName) {
     let texts = [];
     try {
       const textData = await rekognition.detectText(params).promise();
-      texts = textData.TextDetections.map((t) =>
-        t.DetectedText.toLowerCase()
-      );
+      texts = textData.TextDetections.map((t) => t.DetectedText.toLowerCase());
     } catch {}
 
     // 4. Build semantic embedding
