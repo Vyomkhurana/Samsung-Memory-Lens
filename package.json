@@ -13,6 +13,7 @@
   "dependencies": {
     "@deepgram/sdk": "^4.11.2",
     "@qdrant/js-client-rest": "^1.15.1",
+    "all": "^0.0.0",
     "aws-sdk": "^2.1692.0",
     "body-parser": "^2.2.0",
     "bootstrap": "^5.3.8",
