@@ -7,6 +7,7 @@ import { Issuer, generators } from "openid-client";
 import AWS from "aws-sdk";
 import { detectLabelsInBucket } from "./rekognition.js"
 
+
 dotenv.config();
 
 const app = express();

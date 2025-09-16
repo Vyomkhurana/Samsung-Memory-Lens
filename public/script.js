@@ -56,7 +56,7 @@
         }
     }
 
-    function detectSilence(onSilence, timeout = 2000, threshold = 0.02) {
+    function detectSilence(onSilence, timeout = 3000, threshold = 0.02) {
         let silenceStart = performance.now();
 
         function check() {
