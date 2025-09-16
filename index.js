@@ -3,48 +3,30 @@ import multer from "multer";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import session from "express-session";
-import { Issuer, generators } from "openid-client";
+import { QdrantClient } from "@qdrant/js-client-rest";
+import { v4 as uuidv4 } from "uuid";
 import AWS from "aws-sdk";
-import { detectLabelsInBucket } from "./rekognition.js"
+import { PythonShell } from "python-shell";
 
 dotenv.config();
 
 const app = express();
 const rekognition = new AWS.Rekognition();
-
-
+const s3 = new AWS.S3();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 app.set("view engine", "ejs");
 
-const upload = multer(); // for handling audio files
+const upload = multer(); 
 
 AWS.config.update({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION
+  region: process.env.AWS_REGION,
 });
-const s3 = new AWS.S3();
-
-let client;
-async function initializeClient() {
-  const issuer = await Issuer.discover(
-    "https://cognito-idp.ap-south-1.amazonaws.com/ap-south-1_5zqKoYHoA"
-  );
-  client = new issuer.Client({
-    client_id: process.env.aws_cognito_client_id,
-    client_secret: process.env.aws_cognito_client_secret,
-   redirect_uris: [
-     "http://localhost:3000/callback"
-   ],
-    response_types: ["code"],
-  });
-}
-initializeClient().catch(console.error);
 
 app.use(
   session({
@@ -54,186 +36,138 @@ app.use(
   })
 );
 
-
-
-
-const checkAuth = (req, res, next) => {
-  if (!req.session.userInfo) return res.redirect("/login");
-  next();
-};
-// Home route
-app.get("/", (req, res) => {
-  res.render("home");
+// 🔹 Qdrant setup
+const qdrant = new QdrantClient({
+  url: process.env.QDRANTDB_ENDPOINT,
+  apiKey: process.env.QDRANTDB_API_KEY,
 });
+const COLLECTION_NAME = "images";
+const VECTOR_SIZE = 384; 
 
-app.get("/dashboard", checkAuth, (req, res) => {
- 
-  res.render("dashboard", {
-    isAuthenticated: true,
-    userInfo: req.session.userInfo,
-  });
-});
-
-
-
-
-
-app.get("/login", (req, res) => {
-  const nonce = generators.nonce();
-  const state = generators.state();
-
-  req.session.nonce = nonce;
-  req.session.state = state;
-
-  const authUrl = client.authorizationUrl({
-    scope: "openid email phone",
-    state,
-    nonce,
-  });
-
-  res.redirect(authUrl);
-});
-
-app.get("/callback", async (req, res) => {
+async function ensureCollectionExists() {
   try {
-    const params = client.callbackParams(req);
-
-    // dynamically build redirect URI depending on where the request came from
-    const redirectUri =
-      req.hostname === "localhost"
-        ? "http://localhost:3000/callback"
-        : "https://samsung-memory-lens.onrender.com/callback";
-
-    const tokenSet = await client.callback(
-      redirectUri,
-      params,
-      { nonce: req.session.nonce, state: req.session.state }
-    );
-
-    const userInfo = await client.userinfo(tokenSet.access_token);
-    req.session.userInfo = userInfo;
-
-    res.redirect("/dashboard");
+    await qdrant.getCollection(COLLECTION_NAME);
+    console.log("✅ Collection exists.");
   } catch (err) {
-    console.error("Callback error:", err);
-    res.redirect("/");
-  }
-});
-
-
-
-app.get("/logout", (req, res) => {
-  req.session.destroy(() => {
-    const baseUrl = process.env.NODE_ENV === "production" 
-      ? "https://samsung-memory-lens.onrender.com"
-      : "http://localhost:3000";
-
-    const logoutUrl = `https://ap-south-15zqkoyhoa.auth.ap-south-1.amazoncognito.com/logout?client_id=${process.env.aws_cognito_client_id}&logout_uri=${baseUrl}/`;
-    res.redirect(logoutUrl);
-  });
-});
-
-
-// Voice page route
-app.get("/voice", (req, res) => {
-  res.render("voice");
-});
-
-// Provide Deepgram API key (for debugging only — remove in production!)
-app.get("/get-deepgram-key", (req, res) => {
-  res.json({ key: process.env.DEEPGRAM_API_KEY || "No Key Found" });
-});
-
-app.post("/transcribe", upload.single("audio"), async (req, res) => {
-  try {
-    // 1. Transcribe audio
-    const response = await fetch("https://api.deepgram.com/v1/listen", {
-      method: "POST",
-      headers: {
-        Authorization: `Token ${process.env.DEEPGRAM_API_KEY}`,
-        "Content-Type": req.file.mimetype || "audio/webm",
+    console.log("⚠️ Collection does not exist. Creating...");
+    await qdrant.createCollection(COLLECTION_NAME, {
+      vectors: {
+        size: VECTOR_SIZE,
+        distance: "Cosine",
       },
-      body: req.file.buffer,
+    });
+    console.log("✅ Collection created.");
+  }
+}
+
+async function buildEmbedding(text) {
+  return new Promise((resolve, reject) => {
+    let result = "";
+
+    const pyshell = new PythonShell("embeddings.py", {
+      mode: "text",
+      pythonOptions: ["-u"],
+      pythonPath:
+        "C:\\Users\\gurum\\AppData\\Local\\Programs\\Python\\Python310\\python.exe", // 👈 full path to python.exe
     });
 
-    const data = await response.json();
-    const transcript =
-      data?.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
+    pyshell.send(text);
 
-    // 2. Tokenize transcript (lowercased for matching)
-    const tokens = transcript.toLowerCase().split(/\s+/).filter(Boolean);
+    pyshell.on("message", (msg) => {
+      result += msg;
+    });
 
-    // 3. Analyze ALL S3 images
-    const bucketName = "samsungmemorylens";
-    const analyzedImages = await analyzeBucketImages(bucketName);
+    pyshell.end((err) => {
+      if (err) reject(err);
+      else resolve(JSON.parse(result));
+    });
+  });
+}
 
-    // 4. Filter by label-token overlap
-    const matchedImages = analyzedImages.filter(img =>
-      img.tags.some(tag => {
-        // Handle multi-word tags by splitting them into individual words
-        const tagWords = tag.split(' ');
-        // Check if any word in the tag is an exact match for a token
-        return tagWords.some(tagWord => tokens.includes(tagWord));
-      })
-    );
+async function processAndStoreImageVectors(bucketName) {
+  await ensureCollectionExists();
 
-    // 5. Respond
-    res.json({ transcript, tokens, matchedImages });
-    console.log("Transcript:", transcript);
-    console.log("Tokens:", tokens);
-    console.log("Matched Images:", matchedImages.map(img => img.url));
-  } catch (err) {
-    console.error("Error in /transcribe:", err);
-    res.status(500).json({ error: "Failed to process request" });
-  }
-});
-
-app.get("/analyze-bucket", async (req, res) => {
-  try {
-    const results = await detectLabelsInBucket("samsungmemorylens");
-    res.json(results);
-  } catch (err) {
-    console.error("❌ Analyze error:", err);   // 👈 Add this
-    res.status(500).json({ error: "Failed to analyze images" });
-  }
-});
-
-
-
-async function analyzeBucketImages(bucketName) {
   const objects = await s3.listObjectsV2({ Bucket: bucketName }).promise();
-  const images = objects.Contents.filter(obj => /\.(jpg|jpeg|png)$/i.test(obj.Key));
-
-  const results = await Promise.all(
-    images.map(async obj => {
-      try {
-        const params = {
-          Image: { S3Object: { Bucket: bucketName, Name: obj.Key } },
-          MaxLabels: 10,
-          MinConfidence: 70,
-        };
-        const labelsResponse = await rekognition.detectLabels(params).promise();
-        const labels = labelsResponse.Labels.map(l => l.Name.toLowerCase());
-
-        return {
-          key: obj.Key,
-          url: `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${obj.Key}`,
-          tags: labels,
-        };
-      } catch (e) {
-        console.error("Rekognition failed for", obj.Key, e);
-        return null;
-      }
-    })
+  const images = objects.Contents.filter((obj) =>
+    /\.(jpg|jpeg|png)$/i.test(obj.Key)
   );
 
-  return results.filter(Boolean);
+  for (const obj of images) {
+    const params = {
+      Image: { S3Object: { Bucket: bucketName, Name: obj.Key } },
+    };
+
+    let labels = [];
+    try {
+      const labelData = await rekognition
+        .detectLabels({ ...params, MaxLabels: 10, MinConfidence: 70 })
+        .promise();
+      labels = labelData.Labels.map((l) => l.Name.toLowerCase());
+    } catch {}
+
+    let celebrities = [];
+    try {
+      const celebData = await rekognition
+        .recognizeCelebrities(params)
+        .promise();
+      celebrities = celebData.CelebrityFaces.map((c) => c.Name.toLowerCase());
+    } catch {}
+
+    let texts = [];
+    try {
+      const textData = await rekognition.detectText(params).promise();
+      texts = textData.TextDetections.map((t) => t.DetectedText.toLowerCase());
+    } catch {}
+
+    const allFeatures = [...labels, ...celebrities, ...texts];
+    const embedding = await buildEmbedding(allFeatures.join(" "));
+
+    await qdrant.upsert(COLLECTION_NAME, {
+      points: [
+        {
+          id: uuidv4(),
+          vector: embedding,
+          payload: {
+            url: `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${obj.Key}`,
+            fileName: obj.Key,
+            labels,
+            celebrities,
+            texts,
+          },
+        },
+      ],
+    });
+
+    console.log(`✅ Stored vector for ${obj.Key}`);
+  }
 }
 
+async function searchImagesByStatement(statement) {
+  const statementEmbedding = await buildEmbedding(statement);
 
-function tokenize(sentence) {
-  return sentence.match(/\b\w+\b/g);
+  const result = await qdrant.search(COLLECTION_NAME, {
+    vector: statementEmbedding,
+    limit: 1,
+    with_payload: true,
+  });
+
+  if (result.length && result[0].payload?.fileName) {
+    return result[0].payload.fileName;
+  }
+  return null;
 }
+
+async function main() {
+ 
+  // await processAndStoreImageVectors("samsungmemorylens");
+
+  const matchedFile = await searchImagesByStatement(
+    "he is the king of bollywood. "
+  );
+  console.log("🎯 Best matched file:", matchedFile);
+}
+
+main().catch((err) => console.error("❌ Error:", err));
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
