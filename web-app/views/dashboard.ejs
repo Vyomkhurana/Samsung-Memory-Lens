@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Memory Lens</title>
+    <link rel="shortcut icon" href="/favicon.png" type="image/x-icon">
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <%- include('partials/dashboard-header') %>
+    <div class="container">
+      <h2>Welcome to Memory Lens!</h2>
+      <% if (isAuthenticated) { %>
+      <div>
+        <h6>You are logged in as <%= userInfo.email %></h6>
+      </div>
+
+      <% } %>
+      <hr />
+
+      <div class="card">
+        <h5 class="card-header">
+          <button id="recordBtn" class="voice-search-btn pulse">
+            <i class="bi bi-mic-fill"></i>
+          </button>
+        </h5>
+        <div class="card-body">
+          <p class="card-text" id="transcript">
+            Your transcript will appear here...
+          </p>
+        </div>
+      </div>
+      <hr />
+    </div>
+
+    <%- include('partials/footer') %>
+    <script src="/script.js"></script>
+  </body>
+</html>
