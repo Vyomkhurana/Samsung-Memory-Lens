@@ -45,17 +45,33 @@ app.use(
 );
 
 // Qdrant Vector Database setup
-const qdrant = new QdrantClient({
-  url: process.env.QDRANTDB_ENDPOINT || "http://localhost:6333",
-  apiKey: process.env.QDRANTDB_API_KEY,
-});
+let qdrant = null;
+let isQdrantAvailable = false;
+
+try {
+  if (process.env.QDRANTDB_ENDPOINT) {
+    qdrant = new QdrantClient({
+      url: process.env.QDRANTDB_ENDPOINT,
+      apiKey: process.env.QDRANTDB_API_KEY,
+    });
+  }
+} catch (err) {
+  console.log("⚠️ Qdrant client initialization failed, using mock backend");
+}
+
 const COLLECTION_NAME = "images";
 const VECTOR_SIZE = 384;
 
 async function ensureCollectionExists() {
+  if (!qdrant) {
+    console.log("📱 Qdrant not configured, using mock backend");
+    return false;
+  }
+  
   try {
     await qdrant.getCollection(COLLECTION_NAME);
     console.log("✅ Collection exists.");
+    isQdrantAvailable = true;
   } catch (err) {
     console.log("⚠️ Collection does not exist. Creating...");
     try {
@@ -66,9 +82,11 @@ async function ensureCollectionExists() {
         },
       });
       console.log("✅ Collection created.");
+      isQdrantAvailable = true;
     } catch (createErr) {
       console.warn("❌ Qdrant connection failed. Running without vector database:", createErr.message);
       console.log("📱 Backend will use mock search results for now");
+      isQdrantAvailable = false;
       return false;
     }
   }
@@ -418,17 +436,20 @@ app.get("/health", (req, res) => {
 // Test endpoint for quick verification
 app.get("/test", async (req, res) => {
   try {
-    await ensureCollectionExists();
+    const qdrantStatus = await ensureCollectionExists();
     res.json({
       status: "Backend is working!",
-      qdrant_connection: "✅ Connected",
+      qdrant_connection: qdrantStatus ? "✅ Connected" : "❌ Using mock backend",
       aws_config: process.env.AWS_ACCESS_KEY_ID ? "✅ Configured" : "❌ Missing",
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({
-      status: "Error",
-      error: error.message
+    res.status(200).json({
+      status: "Backend is working (with errors)!",
+      qdrant_connection: "❌ Using mock backend",
+      aws_config: process.env.AWS_ACCESS_KEY_ID ? "✅ Configured" : "❌ Missing",
+      error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -439,8 +460,10 @@ app.listen(PORT, () => {
   console.log(`📋 Health check: http://localhost:${PORT}/health`);
   console.log(`🧪 Test endpoint: http://localhost:${PORT}/test`);
   
-  // Initialize collection on startup
-  ensureCollectionExists().catch(console.error);
+  // Initialize collection on startup but don't crash if it fails
+  ensureCollectionExists()
+    .then(() => console.log("🎯 Backend initialization complete"))
+    .catch((err) => console.log("⚠️ Backend running with limited features:", err.message));
 });
 
 export default app;
