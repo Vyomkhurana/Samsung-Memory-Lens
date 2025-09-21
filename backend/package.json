@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
+    "build": "pip install -r requirements.txt",
     "test": "node test-server.js",
     "dev": "nodemon index.js",
     "test-dev": "nodemon test-server.js"
