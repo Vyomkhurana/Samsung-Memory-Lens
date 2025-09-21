@@ -119,54 +119,41 @@ async function buildEmbedding(text) {
 
 async function searchImagesByStatement(statement) {
   try {
-    // Skip embedding for now and go straight to mock results
     console.log(`🔍 Searching for: "${statement}"`);
     
-    // Fallback to mock search results for demo
-    const mockResults = [];
-    const text = statement.toLowerCase();
-    
-    if (text.includes('red') && text.includes('car')) {
-      mockResults.push({
-        filename: 'red_car_vacation.jpg',
-        labels: ['red', 'car', 'vehicle'],
-        celebrities: [],
-        texts: [],
-        uploadTimestamp: new Date().toISOString(),
-        source: 'mock_data',
-        path: '/gallery/red_car.jpg',
-        score: 0.95
-      });
+    // If Qdrant is not available, return empty results with helpful message
+    if (!isQdrantAvailable) {
+      console.log("⚠️ Vector database not available - no images to search");
+      return [];
     }
+
+    // Build embedding for the search statement
+    const statementEmbedding = await buildEmbedding(statement);
     
-    if (text.includes('car')) {
-      mockResults.push({
-        filename: 'blue_car_street.jpg',
-        labels: ['blue', 'car', 'street'],
-        celebrities: [],
-        texts: [],
-        uploadTimestamp: new Date().toISOString(),
-        source: 'mock_data',
-        path: '/gallery/blue_car.jpg',
-        score: 0.75
-      });
-    }
-    
-    if (mockResults.length === 0) {
-      mockResults.push({
-        filename: 'sample_photo.jpg',
-        labels: ['photo', 'memory'],
-        celebrities: [],
-        texts: [],
-        uploadTimestamp: new Date().toISOString(),
-        source: 'mock_data',
-        path: '/gallery/sample.jpg',
-        score: 0.50
-      });
-    }
-    
-    console.log(`✅ Found ${mockResults.length} mock results`);
-    return mockResults;
+    // Search in vector database
+    const searchResults = await qdrant.search(COLLECTION_NAME, {
+      vector: statementEmbedding,
+      limit: 10, // Return top 10 matches
+      with_payload: true,
+      score_threshold: 0.3 // Only return results with decent similarity
+    });
+
+    // Format results for Flutter app
+    const formattedResults = searchResults.map((result, index) => ({
+      id: result.id,
+      filename: result.payload.filename || `image_${result.id}`,
+      labels: result.payload.labels || [],
+      celebrities: result.payload.celebrities || [],
+      texts: result.payload.texts || [],
+      uploadTimestamp: result.payload.uploadTimestamp || new Date().toISOString(),
+      source: 'vector_search',
+      path: result.payload.imageUrl || result.payload.url || `/gallery/${result.payload.filename}`,
+      score: result.score,
+      rank: index + 1
+    }));
+
+    console.log(`✅ Found ${formattedResults.length} vector search results`);
+    return formattedResults;
   } catch (error) {
     console.warn("❌ Search failed:", error.message);
     return [];
@@ -455,10 +442,11 @@ app.get("/test", async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Samsung Memory Lens Backend running at http://localhost:${PORT}`);
   console.log(`📋 Health check: http://localhost:${PORT}/health`);
   console.log(`🧪 Test endpoint: http://localhost:${PORT}/test`);
+  console.log(`🌐 Accessible from all network interfaces on port ${PORT}`);
   
   // Initialize collection on startup but don't crash if it fails
   ensureCollectionExists()

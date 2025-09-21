@@ -80,15 +80,12 @@ class BackendApiService {
       );
       
       if (response.statusCode == 200) {
-            print('✅ Mock backend: Text successfully processed!');
+        print('✅ Mock backend: Text successfully processed!');
     
-    // Add delay to simulate processing
-    await Future.delayed(const Duration(milliseconds: 200));
-    
-    print('🚀 BEFORE RETURNING FROM MOCK BACKEND');
-    print('🚀 Text was: "$text"');
-    print('🚀 Search terms found: $searchTerms');
-    print('🚀 Mock results count: ${mockResults.length}');
+        // Add delay to simulate processing
+        await Future.delayed(const Duration(milliseconds: 200));
+        
+        print('🚀 Mock backend processing complete');
         return true;
       } else {
         print('⚠️ GitHub repository access limited (authentication needed)');
