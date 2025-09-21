@@ -6,7 +6,7 @@ import session from "express-session";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { v4 as uuidv4 } from "uuid";
 import AWS from "aws-sdk";
-import { PythonShell } from "python-shell";
+// Removed PythonShell - using pure JavaScript semantic search!
 
 dotenv.config();
 
@@ -93,7 +93,85 @@ async function ensureCollectionExists() {
   return true;
 }
 
-// Lightweight semantic search without heavy ML dependencies
+// Pure JavaScript semantic search using AWS Rekognition labels
+function createTextVector(text, labels) {
+  // Create semantic vector from AWS Rekognition labels + text
+  const words = text.toLowerCase().split(/\s+/);
+  const allTerms = [...words, ...labels.map(l => l.toLowerCase())];
+  
+  // Create a simple 384-dimensional vector based on semantic hashing
+  const vector = new Array(384).fill(0);
+  
+  allTerms.forEach((term, i) => {
+    const hash = simpleHash(term) % 384;
+    vector[hash] += 1.0 / (i + 1); // Weight earlier terms more
+  });
+  
+  // Normalize vector
+  const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
+  return magnitude > 0 ? vector.map(val => val / magnitude) : vector;
+}
+
+function simpleHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash);
+}
+
+function semanticSearchWithoutPython(queryText, imageDatabase) {
+  console.log(`🔍 Pure JS semantic search for: "${queryText}"`);
+  
+  const queryWords = queryText.toLowerCase().split(/\s+/);
+  const results = [];
+  
+  // Search through stored images using AWS labels
+  imageDatabase.forEach(image => {
+    const labels = image.labels || [];
+    const celebrities = image.celebrities || [];
+    const texts = image.texts || [];
+    
+    let score = 0;
+    
+    // Direct label matching (highest score)
+    labels.forEach(label => {
+      if (queryWords.some(word => label.toLowerCase().includes(word))) {
+        score += 1.0;
+      }
+    });
+    
+    // Celebrity matching
+    celebrities.forEach(celebrity => {
+      if (queryWords.some(word => celebrity.toLowerCase().includes(word))) {
+        score += 0.9;
+      }
+    });
+    
+    // Text content matching  
+    texts.forEach(text => {
+      if (queryWords.some(word => text.toLowerCase().includes(word))) {
+        score += 0.8;
+      }
+    });
+    
+    // Semantic similarity (colors, objects, etc.)
+    score += lightweightSemanticSearch(queryText, labels);
+    
+    if (score > 0.3) { // Threshold for relevance
+      results.push({
+        ...image,
+        score: score,
+        source: 'aws_semantic_search'
+      });
+    }
+  });
+  
+  // Sort by score descending
+  return results.sort((a, b) => b.score - a.score).slice(0, 10);
+}
 function lightweightSemanticSearch(queryText, imageLabels) {
   // Semantic similarity mappings for common concepts
   const semanticGroups = {
@@ -144,28 +222,10 @@ function lightweightSemanticSearch(queryText, imageLabels) {
   return score;
 }
 
-async function buildEmbedding(text) {
-  return new Promise((resolve, reject) => {
-    let result = "";
-
-    const pyshell = new PythonShell("embeddings_openai.py", {
-      mode: "text",
-      pythonOptions: ["-u"],
-      pythonPath: process.env.PYTHON_PATH || "python",
-      scriptPath: "./",
-    });
-
-    pyshell.send(text);
-
-    pyshell.on("message", (msg) => {
-      result += msg;
-    });
-
-    pyshell.end((err) => {
-      if (err) reject(err);
-      else resolve(JSON.parse(result));
-    });
-  });
+// Pure JavaScript embedding - no Python needed!
+function buildEmbedding(text, labels = []) {
+  // Create vector using AWS Rekognition labels + semantic analysis
+  return createTextVector(text, labels);
 }
 
 async function searchImagesByStatement(statement) {
@@ -200,7 +260,7 @@ async function searchImagesByStatement(statement) {
     }
 
     // Build embedding for the search statement
-    const statementEmbedding = await buildEmbedding(statement);
+    const statementEmbedding = buildEmbedding(statement);
     
     // Search in vector database
     const searchResults = await qdrant.search(COLLECTION_NAME, {
@@ -339,7 +399,7 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
 
         // 4. Build semantic embedding
         const allFeatures = [...labels, ...celebrities, ...texts];
-        const embedding = await buildEmbedding(allFeatures.join(" "));
+        const embedding = buildEmbedding(allFeatures.join(" "), labels);
 
         // 5. Store in Qdrant Vector Database
         const pointId = uuidv4();
@@ -441,9 +501,9 @@ app.post("/analyze-image", upload.single("image"), async (req, res) => {
       texts = textData.TextDetections.map((t) => t.DetectedText.toLowerCase());
     } catch {}
 
-    // 4. Build semantic embedding
+    // 4. Build semantic embedding using AWS labels + pure JavaScript
     const allFeatures = [...labels, ...celebrities, ...texts];
-    const embedding = await buildEmbedding(allFeatures.join(" "));
+    const embedding = buildEmbedding(allFeatures.join(" "), labels);
 
     // 5. Store in Qdrant
     const pointId = uuidv4();
