@@ -46,3 +46,8 @@ app.*.map.json
 
 # Backend node_modules
 backend/node_modules/
+
+# Environment files with sensitive credentials
+.env
+backend/.env
+*.env
