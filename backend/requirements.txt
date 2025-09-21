@@ -1,2 +1,3 @@
-# No Python dependencies needed!
-# Using pure Python standard library for lightweight semantic search
+# Dummy package to satisfy OnRender build command
+# Remove this line once you update OnRender build command to just "npm install"
+requests==2.31.0
