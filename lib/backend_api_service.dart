@@ -11,8 +11,8 @@ class BackendApiService {
   static const String baseUrl = 'https://api.github.com/repos/$githubOwner/$githubRepo';
   static const String recognitionEndpoint = '$baseUrl/contents/recognition_data.json';
   
-  // Local backend server URL (Samsung Memory Lens Backend)
-  static const String backendServerUrl = 'http://localhost:3000';
+  // Production backend server URL (Samsung Memory Lens Backend on OnRender)
+  static const String backendServerUrl = 'https://samsung-memory-lens-38jd.onrender.com';
   
   /// Send recognized text to Samsung Memory Lens backend for image search
   static Future<Map<String, dynamic>> sendRecognizedText({

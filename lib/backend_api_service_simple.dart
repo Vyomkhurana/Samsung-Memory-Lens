@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class BackendApiService {
-  static const String backendServerUrl = 'http://localhost:3000';
+  static const String backendServerUrl = 'https://samsung-memory-lens-38jd.onrender.com';
 
   /// Send recognized text to backend
   static Future<Map<String, dynamic>> sendRecognizedText({

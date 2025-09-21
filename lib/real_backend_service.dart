@@ -5,7 +5,7 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:path/path.dart' as path;
 
 class RealBackendService {
-  static const String baseUrl = 'http://localhost:3000';
+  static const String baseUrl = 'https://samsung-memory-lens-38jd.onrender.com';
   
   /// Upload a single selected photo to backend
   static Future<Map<String, dynamic>> uploadSelectedPhoto(AssetEntity asset) async {
@@ -42,8 +42,8 @@ class RealBackendService {
         
         print('🚀 Uploading photo to backend...');
         
-        // Send the request with longer timeout
-        var streamedResponse = await request.send().timeout(Duration(seconds: 15));
+        // Send the request with longer timeout for AWS Rekognition processing
+        var streamedResponse = await request.send().timeout(Duration(seconds: 60));
         var response = await http.Response.fromStream(streamedResponse);
         
         if (response.statusCode == 200) {
@@ -197,7 +197,7 @@ class RealBackendService {
   static Future<bool> isBackendRunning() async {
     try {
       var response = await http.get(Uri.parse('$baseUrl/health')).timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 30),
       );
       return response.statusCode == 200;
     } catch (e) {
