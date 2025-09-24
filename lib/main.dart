@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:glassmorphism/glassmorphism.dart';
 import 'gallery_service.dart';
 import 'voice_recording_service.dart';
 import 'directory_picker_service.dart';
@@ -686,17 +687,28 @@ class _GalleryScreenState extends State<GalleryScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                const Color(0xFF0A0A0A).withOpacity(0.95),
-                const Color(0xFF0A0A0A).withOpacity(0.8),
-                Colors.transparent,
-              ],
-            ),
+        flexibleSpace: GlassmorphicContainer(
+          width: double.infinity,
+          height: double.infinity,
+          borderRadius: 0,
+          blur: 20,
+          alignment: Alignment.bottomCenter,
+          border: 0,
+          linearGradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF00D4FF).withOpacity(0.1),
+              const Color(0xFF4FC3F7).withOpacity(0.05),
+            ],
+          ),
+          borderGradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF00D4FF).withOpacity(0.2),
+              const Color(0xFF4FC3F7).withOpacity(0.1),
+            ],
           ),
         ),
         actions: [
@@ -983,47 +995,86 @@ class _GalleryScreenState extends State<GalleryScreen> {
   Widget _buildTestButton() {
     return Stack(
       children: [
-        // Upload Multiple Photos Button (Bulk Upload)
+        // Upload Multiple Photos Button (Bulk Upload) - Glassmorphism
         Positioned(
           bottom: 160,
           right: 20,
-          child: FloatingActionButton(
-            heroTag: "upload_multiple_photos",
-            mini: true,
-            backgroundColor: const Color(0xFFFF9800), // Orange color
-            onPressed: _uploadMultiplePhotosToBackend,
-            child: const Icon(
-              Icons.photo_library,
-              color: Colors.white,
-              size: 20,
+          child: GestureDetector(
+            onTap: _uploadMultiplePhotosToBackend,
+            child: GlassmorphicContainer(
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              blur: 20,
+              alignment: Alignment.center,
+              border: 2,
+              linearGradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFFFF9800).withOpacity(0.3),
+                  const Color(0xFFFF6F00).withOpacity(0.2),
+                ],
+              ),
+              borderGradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFFFF9800).withOpacity(0.6),
+                  const Color(0xFFFF6F00).withOpacity(0.4),
+                ],
+              ),
+              child: const Icon(
+                Icons.photo_library,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
           ),
         ),
-        // Upload Selected Photo Button
+        // Upload Selected Photo Button - Glassmorphism
         Positioned(
           bottom: 100,
           right: 20,
-          child: FloatingActionButton(
-            heroTag: "upload_selected_photo",
-            mini: true,
-            backgroundColor: const Color(0xFF2196F3),
-            onPressed: _uploadSelectedPhotoToBackend,
-            child: const Icon(
-              Icons.add_photo_alternate,
-              color: Colors.white,
-              size: 20,
+          child: GestureDetector(
+            onTap: _uploadSelectedPhotoToBackend,
+            child: GlassmorphicContainer(
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              blur: 20,
+              alignment: Alignment.center,
+              border: 2,
+              linearGradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF2196F3).withOpacity(0.3),
+                  const Color(0xFF1976D2).withOpacity(0.2),
+                ],
+              ),
+              borderGradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF2196F3).withOpacity(0.6),
+                  const Color(0xFF1976D2).withOpacity(0.4),
+                ],
+              ),
+              child: const Icon(
+                Icons.add_photo_alternate,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
           ),
         ),
-        // Test Navigation Button
+        // Test Navigation Button - Glassmorphism
         Positioned(
           bottom: 40,
           right: 20,
-          child: FloatingActionButton(
-            heroTag: "test_backend",
-            mini: true,
-            backgroundColor: const Color(0xFF4CAF50),
-            onPressed: () {
+          child: GestureDetector(
+            onTap: () {
               print('🟢 Green test button pressed!');
               
               // Direct navigation test - bypass all logic
@@ -1052,10 +1103,34 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 print('❌ Direct navigation failed: $e');
               }
             },
-            child: const Icon(
-              Icons.science,
-              color: Colors.white,
-              size: 20,
+            child: GlassmorphicContainer(
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              blur: 20,
+              alignment: Alignment.center,
+              border: 2,
+              linearGradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF4CAF50).withOpacity(0.3),
+                  const Color(0xFF388E3C).withOpacity(0.2),
+                ],
+              ),
+              borderGradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF4CAF50).withOpacity(0.6),
+                  const Color(0xFF388E3C).withOpacity(0.4),
+                ],
+              ),
+              child: const Icon(
+                Icons.science,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
           ),
         ),
@@ -1071,119 +1146,118 @@ class _GalleryScreenState extends State<GalleryScreen> {
       child: AnimatedOpacity(
         opacity: _recognizedText.isNotEmpty ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 300),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF1E1E1E), Color(0xFF2A2A2A)],
-            ),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: const Color(0xFF00D4FF).withOpacity(0.3),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.4),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-                spreadRadius: 5,
-              ),
-              BoxShadow(
-                color: const Color(0xFF00D4FF).withOpacity(0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 5),
-              ),
+        child: GlassmorphicContainer(
+          width: double.infinity,
+          height: 120,
+          borderRadius: 24,
+          blur: 30,
+          alignment: Alignment.bottomCenter,
+          border: 2,
+          linearGradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF00D4FF).withOpacity(0.15),
+              const Color(0xFF4FC3F7).withOpacity(0.1),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00D4FF).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.mic, 
-                      color: Color(0xFF00D4FF), 
-                      size: 20
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Listening...',
-                      style: TextStyle(
-                        color: Color(0xFF00D4FF),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+          borderGradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF00D4FF).withOpacity(0.4),
+              const Color(0xFF4FC3F7).withOpacity(0.2),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00D4FF).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
                       ),
+                      child: const Icon(
+                        Icons.mic, 
+                        color: Color(0xFF00D4FF), 
+                        size: 20
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Listening...',
+                        style: TextStyle(
+                          color: Color(0xFF00D4FF),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_recognizedText.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0A0A0A),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.1),
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _recognizedText,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            height: 1.4,
+                          ),
+                        ),
+                        if (_isSendingToBackend) ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Color(0xFF00D4FF),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Sending to backend...',
+                                style: TextStyle(
+                                  color: Color(0xFF00D4FF),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],
-              ),
-              if (_recognizedText.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0A0A0A),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _recognizedText,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                          height: 1.4,
-                        ),
-                      ),
-                      if (_isSendingToBackend) ...[
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            SizedBox(
-                              height: 16,
-                              width: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF00D4FF),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Sending to backend...',
-                              style: TextStyle(
-                                color: Color(0xFF00D4FF),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
               ],
-            ],
+            ),
           ),
         ),
       ),
