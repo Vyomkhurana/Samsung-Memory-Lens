@@ -239,118 +239,177 @@ function buildEmbedding(text, labels = [], celebrities = [], texts = []) {
 
 async function searchImagesByStatement(statement) {
   try {
-    console.log(`🔍 Searching for: "${statement}"`);
+    console.log(`🔍 Comprehensive Search for: "${statement}"`);
     
     // If Qdrant is not available, use lightweight semantic search
     if (!isQdrantAvailable) {
       console.log("⚠️ Vector database not available - using lightweight semantic search");
-      
-      // Create some example results with semantic matching
-      const semanticLabels = [];
-      
-      // Add object/entity labels
-      if (statement.includes('person') || statement.includes('people')) {
-        semanticLabels.push('person', 'human');
-      }
-      if (statement.includes('car') || statement.includes('vehicle')) {
-        semanticLabels.push('car', 'vehicle');
-      }
-      if (statement.includes('animal') || statement.includes('cat') || statement.includes('dog')) {
-        semanticLabels.push('animal', 'pet');
-      }
-      if (statement.includes('celebrity') || statement.includes('celebrities')) {
-        semanticLabels.push('celebrity', 'famous', 'person');
-      }
-      
-      // Add color labels
-      if (statement.includes('red')) semanticLabels.push('red');
-      if (statement.includes('blue')) semanticLabels.push('blue');
-      if (statement.includes('green')) semanticLabels.push('green');
-      if (statement.includes('yellow')) semanticLabels.push('yellow');
-      if (statement.includes('black')) semanticLabels.push('black');
-      if (statement.includes('white')) semanticLabels.push('white');
-      
-      // Default to generic labels if nothing specific found
-      if (semanticLabels.length === 0) {
-        semanticLabels.push('photo', 'image');
-      }
-      
-      const semanticResults = [
-        {
-          id: 'semantic_1',
-          filename: 'semantic_match.jpg',
-          labels: semanticLabels,
-          celebrities: [],
-          texts: [],
-          uploadTimestamp: new Date().toISOString(),
-          source: 'semantic_search',
-          path: '/gallery/semantic_match.jpg',
-          score: lightweightSemanticSearch(statement, semanticLabels)
-        }
-      ];
-      
-      // Filter results based on semantic score
-      return semanticResults.filter(result => result.score > 0.5);
+      return [];
     }
 
-    // Build embedding for the search statement
-    const statementEmbedding = buildEmbedding(statement);
-    
-    // Enhanced search logic for celebrity queries
-    let searchResults = [];
     const queryLower = statement.toLowerCase();
+    console.log(`📝 Query analysis: "${queryLower}"`);
     
-    // If searching for "celebrity" or "celebrities", find images with any celebrity
-    if (queryLower.includes('celebrity') || queryLower.includes('celebrities')) {
-      console.log("🌟 Celebrity search detected - searching for images with celebrities");
-      
-      // Search with broader criteria for celebrity images
-      const allResults = await qdrant.search(COLLECTION_NAME, {
-        vector: statementEmbedding,
-        limit: 50, // Get more results to filter
+    // Step 1: Get ALL images from database first (we need to search payloads directly)
+    let allResults = [];
+    try {
+      // Get a large batch of images to search through
+      allResults = await qdrant.scroll(COLLECTION_NAME, {
+        limit: 200, // Get more images to search through
         with_payload: true,
-        score_threshold: 0.1 // Lower threshold for broader search
+        with_vector: false // We don't need vectors for direct payload search
       });
       
-      // Filter for images that have celebrities
-      searchResults = allResults.filter(result => 
-        result.payload.celebrities && result.payload.celebrities.length > 0
-      ).slice(0, 10); // Take top 10 celebrity images
+      if (allResults.points && allResults.points.length > 0) {
+        allResults = allResults.points;
+        console.log(`📚 Retrieved ${allResults.length} images from database for direct search`);
+      } else {
+        console.log("⚠️ No images found in database");
+        return [];
+      }
+    } catch (error) {
+      console.error("❌ Error retrieving images from database:", error);
+      return [];
+    }
+
+    let searchResults = [];
+    
+    // Step 2: DIRECT CELEBRITY NAME SEARCH - Most important for your use case
+    console.log("🌟 Step 1: Direct celebrity name search");
+    const celebrityMatches = allResults.filter(result => {
+      const celebrities = result.payload.celebrities || [];
+      if (celebrities.length === 0) return false;
       
-    } else {
-      // Normal vector search
-      searchResults = await qdrant.search(COLLECTION_NAME, {
-        vector: statementEmbedding,
-        limit: 10,
-        with_payload: true,
-        score_threshold: 0.3
-      });
-      
-      // If no good results and query might be a celebrity name, try celebrity-specific search
-      if (searchResults.length === 0 || searchResults[0].score < 0.5) {
-        console.log("🌟 Trying celebrity name search for:", statement);
+      // Direct celebrity name matching
+      const celebrityMatch = celebrities.some(celeb => {
+        const celebLower = celeb.toLowerCase();
         
-        const celebrityResults = await qdrant.search(COLLECTION_NAME, {
-          vector: statementEmbedding,
-          limit: 50,
-          with_payload: true,
-          score_threshold: 0.1
+        // Exact match
+        if (celebLower === queryLower) return true;
+        
+        // Partial name match (for "akshay" matching "akshay kumar")
+        if (celebLower.includes(queryLower) || queryLower.includes(celebLower)) return true;
+        
+        // Name parts match (for "kumar" matching "akshay kumar")
+        const celebParts = celebLower.split(' ');
+        const queryParts = queryLower.split(' ');
+        return celebParts.some(part => queryParts.includes(part)) ||
+               queryParts.some(part => celebParts.includes(part));
+      });
+      
+      if (celebrityMatch) {
+        result.score = 0.95; // High score for direct celebrity matches
+        result.matchType = 'celebrity_name';
+        console.log(`🎭 Found celebrity match: ${celebrities.join(', ')}`);
+      }
+      
+      return celebrityMatch;
+    });
+    
+    searchResults = [...celebrityMatches];
+    
+    // Step 3: CELEBRITY GENERAL SEARCH - For "celebrity" or "celebrities" queries
+    if (queryLower.includes('celebrity') || queryLower.includes('celebrities')) {
+      console.log("🌟 Step 2: General celebrity search");
+      
+      const generalCelebrityMatches = allResults.filter(result => {
+        const celebrities = result.payload.celebrities || [];
+        const labels = result.payload.labels || [];
+        
+        const hasCelebrities = celebrities.length > 0;
+        const hasPersonLabel = labels.some(label => 
+          label.toLowerCase().includes('person') || 
+          label.toLowerCase().includes('people') ||
+          label.toLowerCase().includes('human')
+        );
+        
+        if (hasCelebrities) {
+          result.score = 0.9;
+          result.matchType = 'has_celebrity';
+          console.log(`🎭 Found image with celebrities: ${celebrities.join(', ')}`);
+          return true;
+        }
+        
+        return false;
+      });
+      
+      // Add unique celebrity matches
+      generalCelebrityMatches.forEach(match => {
+        if (!searchResults.find(existing => existing.id === match.id)) {
+          searchResults.push(match);
+        }
+      });
+    }
+    
+    // Step 4: LABEL SEARCH - For objects, scenes, etc.
+    if (searchResults.length < 5) {
+      console.log("🌟 Step 3: Label-based search");
+      
+      const labelMatches = allResults.filter(result => {
+        const labels = result.payload.labels || [];
+        
+        const labelMatch = labels.some(label => {
+          const labelLower = label.toLowerCase();
+          return labelLower.includes(queryLower) || queryLower.includes(labelLower);
         });
         
-        // Filter for images where celebrity names contain the search term
-        const celebrityMatches = celebrityResults.filter(result => {
-          const celebrities = result.payload.celebrities || [];
-          return celebrities.some(celeb => 
-            celeb.toLowerCase().includes(queryLower) || 
-            queryLower.includes(celeb.toLowerCase())
-          );
-        }).slice(0, 10);
-        
-        if (celebrityMatches.length > 0) {
-          searchResults = celebrityMatches;
+        if (labelMatch) {
+          result.score = 0.7;
+          result.matchType = 'label';
+          console.log(`🏷️ Found label match: ${labels.join(', ')}`);
         }
-      }
+        
+        return labelMatch;
+      });
+      
+      // Add unique label matches
+      labelMatches.forEach(match => {
+        if (!searchResults.find(existing => existing.id === match.id)) {
+          searchResults.push(match);
+        }
+      });
     }
+    
+    // Step 5: TEXT SEARCH - For OCR text content
+    if (searchResults.length < 5) {
+      console.log("🌟 Step 4: Text content search");
+      
+      const textMatches = allResults.filter(result => {
+        const texts = result.payload.texts || [];
+        
+        const textMatch = texts.some(text => {
+          const textLower = text.toLowerCase();
+          return textLower.includes(queryLower) || queryLower.includes(textLower);
+        });
+        
+        if (textMatch) {
+          result.score = 0.6;
+          result.matchType = 'text';
+          console.log(`📝 Found text match: ${texts.join(', ')}`);
+        }
+        
+        return textMatch;
+      });
+      
+      // Add unique text matches
+      textMatches.forEach(match => {
+        if (!searchResults.find(existing => existing.id === match.id)) {
+          searchResults.push(match);
+        }
+      });
+    }
+    
+    // Sort by score (highest first) and limit results
+    searchResults.sort((a, b) => (b.score || 0) - (a.score || 0));
+    searchResults = searchResults.slice(0, 10);
+    
+    console.log(`✅ Search complete: ${searchResults.length} matches found`);
+    searchResults.forEach((result, i) => {
+      console.log(`  ${i+1}. ${result.matchType}: ${result.payload.filename} (score: ${result.score})`);
+      if (result.payload.celebrities && result.payload.celebrities.length > 0) {
+        console.log(`     Celebrities: ${result.payload.celebrities.join(', ')}`);
+      }
+    });
 
     // Format results for Flutter app
     const formattedResults = searchResults.map((result, index) => ({
