@@ -177,6 +177,7 @@ function lightweightSemanticSearch(queryText, imageLabels) {
   const semanticGroups = {
     vehicles: ['car', 'vehicle', 'auto', 'truck', 'bus', 'motorcycle', 'bike', 'transport'],
     people: ['person', 'people', 'human', 'man', 'woman', 'child', 'face', 'portrait'],
+    celebrities: ['celebrity', 'celebrities', 'famous', 'star', 'actor', 'actress', 'singer', 'musician'],
     animals: ['animal', 'cat', 'dog', 'pet', 'wildlife', 'bird', 'horse', 'cow'],
     colors: ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'black', 'white'],
     nature: ['tree', 'flower', 'plant', 'garden', 'forest', 'landscape', 'nature', 'outdoor'],
@@ -222,10 +223,18 @@ function lightweightSemanticSearch(queryText, imageLabels) {
   return score;
 }
 
-// Pure JavaScript embedding - no Python needed!
-function buildEmbedding(text, labels = []) {
-  // Create vector using AWS Rekognition labels + semantic analysis
-  return createTextVector(text, labels);
+// Enhanced vector embedding function using all available features
+function buildEmbedding(text, labels = [], celebrities = [], texts = []) {
+  // Combine all available features for richer semantic representation
+  const allFeatures = [
+    ...text.toLowerCase().split(/\s+/),
+    ...labels.map(l => l.toLowerCase()),
+    ...celebrities.map(c => c.toLowerCase()),
+    ...texts.map(t => t.toLowerCase())
+  ];
+  
+  // Create semantic vector from all features
+  return createTextVector(allFeatures.join(' '), labels);
 }
 
 async function searchImagesByStatement(statement) {
@@ -248,6 +257,9 @@ async function searchImagesByStatement(statement) {
       }
       if (statement.includes('animal') || statement.includes('cat') || statement.includes('dog')) {
         semanticLabels.push('animal', 'pet');
+      }
+      if (statement.includes('celebrity') || statement.includes('celebrities')) {
+        semanticLabels.push('celebrity', 'famous', 'person');
       }
       
       // Add color labels
@@ -284,13 +296,61 @@ async function searchImagesByStatement(statement) {
     // Build embedding for the search statement
     const statementEmbedding = buildEmbedding(statement);
     
-    // Search in vector database
-    const searchResults = await qdrant.search(COLLECTION_NAME, {
-      vector: statementEmbedding,
-      limit: 10, // Return top 10 matches
-      with_payload: true,
-      score_threshold: 0.3 // Only return results with decent similarity
-    });
+    // Enhanced search logic for celebrity queries
+    let searchResults = [];
+    const queryLower = statement.toLowerCase();
+    
+    // If searching for "celebrity" or "celebrities", find images with any celebrity
+    if (queryLower.includes('celebrity') || queryLower.includes('celebrities')) {
+      console.log("🌟 Celebrity search detected - searching for images with celebrities");
+      
+      // Search with broader criteria for celebrity images
+      const allResults = await qdrant.search(COLLECTION_NAME, {
+        vector: statementEmbedding,
+        limit: 50, // Get more results to filter
+        with_payload: true,
+        score_threshold: 0.1 // Lower threshold for broader search
+      });
+      
+      // Filter for images that have celebrities
+      searchResults = allResults.filter(result => 
+        result.payload.celebrities && result.payload.celebrities.length > 0
+      ).slice(0, 10); // Take top 10 celebrity images
+      
+    } else {
+      // Normal vector search
+      searchResults = await qdrant.search(COLLECTION_NAME, {
+        vector: statementEmbedding,
+        limit: 10,
+        with_payload: true,
+        score_threshold: 0.3
+      });
+      
+      // If no good results and query might be a celebrity name, try celebrity-specific search
+      if (searchResults.length === 0 || searchResults[0].score < 0.5) {
+        console.log("🌟 Trying celebrity name search for:", statement);
+        
+        const celebrityResults = await qdrant.search(COLLECTION_NAME, {
+          vector: statementEmbedding,
+          limit: 50,
+          with_payload: true,
+          score_threshold: 0.1
+        });
+        
+        // Filter for images where celebrity names contain the search term
+        const celebrityMatches = celebrityResults.filter(result => {
+          const celebrities = result.payload.celebrities || [];
+          return celebrities.some(celeb => 
+            celeb.toLowerCase().includes(queryLower) || 
+            queryLower.includes(celeb.toLowerCase())
+          );
+        }).slice(0, 10);
+        
+        if (celebrityMatches.length > 0) {
+          searchResults = celebrityMatches;
+        }
+      }
+    }
 
     // Format results for Flutter app
     const formattedResults = searchResults.map((result, index) => ({
@@ -420,9 +480,19 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
           console.warn(`⚠️ Text detection failed for ${filename}:`, textError.message);
         }
 
-        // 4. Build semantic embedding
-        const allFeatures = [...labels, ...celebrities, ...texts];
-        const embedding = buildEmbedding(allFeatures.join(" "), labels);
+        // 4. Build enhanced semantic embedding using all features
+        const embedding = buildEmbedding(
+          `${labels.join(' ')} ${celebrities.join(' ')} ${texts.join(' ')}`.trim(),
+          labels,
+          celebrities,
+          texts
+        );
+        
+        console.log(`🏷️ Image features for ${filename}:`, {
+          labels: labels.length,
+          celebrities: celebrities.length,
+          texts: texts.length
+        });
 
         // 5. Convert image to base64 for storage and serving
         const imageBase64 = imageBytes.toString('base64');
@@ -533,7 +603,7 @@ app.post("/analyze-image", upload.single("image"), async (req, res) => {
 
     // 4. Build semantic embedding using AWS labels + pure JavaScript
     const allFeatures = [...labels, ...celebrities, ...texts];
-    const embedding = buildEmbedding(allFeatures.join(" "), labels);
+    const embedding = buildEmbedding(allFeatures.join(" "), labels, celebrities, texts);
 
     // 5. Convert image to base64 for storage and serving
     const imageBase64 = imageBytes.toString('base64');
