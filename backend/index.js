@@ -237,21 +237,43 @@ async function searchImagesByStatement(statement) {
       console.log("⚠️ Vector database not available - using lightweight semantic search");
       
       // Create some example results with semantic matching
+      const semanticLabels = [];
+      
+      // Add object/entity labels
+      if (statement.includes('person') || statement.includes('people')) {
+        semanticLabels.push('person', 'human');
+      }
+      if (statement.includes('car') || statement.includes('vehicle')) {
+        semanticLabels.push('car', 'vehicle');
+      }
+      if (statement.includes('animal') || statement.includes('cat') || statement.includes('dog')) {
+        semanticLabels.push('animal', 'pet');
+      }
+      
+      // Add color labels
+      if (statement.includes('red')) semanticLabels.push('red');
+      if (statement.includes('blue')) semanticLabels.push('blue');
+      if (statement.includes('green')) semanticLabels.push('green');
+      if (statement.includes('yellow')) semanticLabels.push('yellow');
+      if (statement.includes('black')) semanticLabels.push('black');
+      if (statement.includes('white')) semanticLabels.push('white');
+      
+      // Default to generic labels if nothing specific found
+      if (semanticLabels.length === 0) {
+        semanticLabels.push('photo', 'image');
+      }
+      
       const semanticResults = [
         {
           id: 'semantic_1',
           filename: 'semantic_match.jpg',
-          labels: statement.includes('person') || statement.includes('people') ? ['person', 'human'] : 
-                  statement.includes('car') || statement.includes('vehicle') ? ['car', 'vehicle'] :
-                  statement.includes('red') ? ['red', 'color'] :
-                  statement.includes('animal') || statement.includes('cat') || statement.includes('dog') ? ['animal', 'pet'] :
-                  ['photo', 'image'],
+          labels: semanticLabels,
           celebrities: [],
           texts: [],
           uploadTimestamp: new Date().toISOString(),
           source: 'semantic_search',
           path: '/gallery/semantic_match.jpg',
-          score: lightweightSemanticSearch(statement, statement.includes('person') ? ['person', 'human'] : ['photo'])
+          score: lightweightSemanticSearch(statement, semanticLabels)
         }
       ];
       
@@ -279,7 +301,8 @@ async function searchImagesByStatement(statement) {
       texts: result.payload.texts || [],
       uploadTimestamp: result.payload.uploadTimestamp || new Date().toISOString(),
       source: 'vector_search',
-      path: result.payload.imageUrl || result.payload.url || `/gallery/${result.payload.filename}`,
+      path: result.payload.imageUrl || `/api/image/${result.id}`,
+      imageUrl: `https://samsung-memory-lens-38jd.onrender.com/api/image/${result.id}`,
       score: result.score,
       rank: index + 1
     }));
@@ -401,7 +424,11 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
         const allFeatures = [...labels, ...celebrities, ...texts];
         const embedding = buildEmbedding(allFeatures.join(" "), labels);
 
-        // 5. Store in Qdrant Vector Database
+        // 5. Convert image to base64 for storage and serving
+        const imageBase64 = imageBytes.toString('base64');
+        const imageDataUrl = `data:${file.mimetype || 'image/jpeg'};base64,${imageBase64}`;
+
+        // 6. Store in Qdrant Vector Database
         const pointId = uuidv4();
         await qdrant.upsert(COLLECTION_NAME, {
           points: [
@@ -416,6 +443,9 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
                 uploadTimestamp: new Date().toISOString(),
                 source: 'flutter_gallery',
                 path: file.path || `/gallery/${filename}`,
+                imageData: imageBase64, // Store base64 image data
+                imageUrl: `/api/image/${pointId}`, // URL to serve the image
+                mimeType: file.mimetype || 'image/jpeg'
               },
             },
           ],
@@ -538,6 +568,53 @@ app.post("/analyze-image", upload.single("image"), async (req, res) => {
       success: false,
       error: "Image analysis failed",
       message: error.message
+    });
+  }
+});
+
+// Serve images by ID endpoint
+app.get("/api/image/:id", async (req, res) => {
+  try {
+    const imageId = req.params.id;
+    
+    if (!qdrant) {
+      return res.status(503).json({ error: "Vector database not available" });
+    }
+
+    // Retrieve image data from Qdrant
+    const result = await qdrant.retrieve(COLLECTION_NAME, {
+      ids: [imageId],
+      with_payload: true
+    });
+
+    if (!result || result.length === 0) {
+      return res.status(404).json({ error: "Image not found" });
+    }
+
+    const imageRecord = result[0];
+    const imageData = imageRecord.payload.imageData;
+    const mimeType = imageRecord.payload.mimeType || 'image/jpeg';
+
+    if (!imageData) {
+      return res.status(404).json({ error: "Image data not found" });
+    }
+
+    // Convert base64 back to buffer and serve
+    const imageBuffer = Buffer.from(imageData, 'base64');
+    
+    res.set({
+      'Content-Type': mimeType,
+      'Content-Length': imageBuffer.length,
+      'Cache-Control': 'public, max-age=86400' // Cache for 24 hours
+    });
+    
+    res.send(imageBuffer);
+    
+  } catch (error) {
+    console.error("❌ Image serving error:", error);
+    res.status(500).json({ 
+      error: "Failed to serve image",
+      message: error.message 
     });
   }
 });

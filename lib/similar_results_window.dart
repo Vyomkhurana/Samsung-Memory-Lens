@@ -163,7 +163,7 @@ class SimilarResultsWindow extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Image Placeholder
+                              // Image Display
                               Expanded(
                                 flex: 3,
                                 child: Container(
@@ -175,26 +175,73 @@ class SimilarResultsWindow extends StatelessWidget {
                                       topRight: Radius.circular(12),
                                     ),
                                   ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.image,
-                                        size: 48,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        result['filename'] ?? 'Unknown',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
+                                  child: ClipRRect(
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(12),
+                                      topRight: Radius.circular(12),
+                                    ),
+                                    child: result['imageUrl'] != null 
+                                        ? Image.network(
+                                            result['imageUrl'],
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                            loadingBuilder: (context, child, loadingProgress) {
+                                              if (loadingProgress == null) return child;
+                                              return Center(
+                                                child: CircularProgressIndicator(
+                                                  value: loadingProgress.expectedTotalBytes != null
+                                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                                    : null,
+                                                  color: Colors.blue,
+                                                ),
+                                              );
+                                            },
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.broken_image,
+                                                    size: 48,
+                                                    color: Colors.red,
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    result['filename'] ?? 'Unknown',
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 12,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          )
+                                        : Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              const Icon(
+                                                Icons.image,
+                                                size: 48,
+                                                color: Colors.grey,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                result['filename'] ?? 'Unknown',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ),
                                   ),
                                 ),
                               ),

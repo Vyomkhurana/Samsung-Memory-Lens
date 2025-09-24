@@ -318,6 +318,46 @@ class _GalleryScreenState extends State<GalleryScreen> {
         });
         print('❌ Upload failed: ${uploadResult['error']}');
       }
+
+    } catch (e) {
+      setState(() {
+        _errorMessage = '❌ Upload error: $e';
+      });
+      print('❌ Upload error: $e');
+    }
+  }
+
+  // Upload multiple photos to backend (bulk upload)
+  Future<void> _uploadMultiplePhotosToBackend() async {
+    setState(() {
+      _errorMessage = '📤 Preparing bulk photo upload...';
+    });
+
+    try {
+      print('📱 Starting bulk photo upload (10 photos)...');
+      
+      setState(() {
+        _errorMessage = '📤 Uploading 10 photos to backend...';
+      });
+      
+      // Upload 10 sample photos from gallery
+      var uploadResult = await RealBackendService.uploadSamplePhotos(count: 10);
+      
+      if (uploadResult['success']) {
+        var uploaded = uploadResult['uploaded'] ?? 0;
+        var total = uploadResult['total'] ?? 10;
+        
+        setState(() {
+          _errorMessage = '✅ Successfully uploaded $uploaded/$total photos!';
+        });
+        
+        print('✅ Bulk upload successful: $uploaded photos processed');
+      } else {
+        setState(() {
+          _errorMessage = '❌ Bulk upload failed: ${uploadResult['error']}';
+        });
+        print('❌ Bulk upload failed: ${uploadResult['error']}');
+      }
       
     } catch (e) {
       setState(() {
@@ -943,6 +983,22 @@ class _GalleryScreenState extends State<GalleryScreen> {
   Widget _buildTestButton() {
     return Stack(
       children: [
+        // Upload Multiple Photos Button (Bulk Upload)
+        Positioned(
+          bottom: 160,
+          right: 20,
+          child: FloatingActionButton(
+            heroTag: "upload_multiple_photos",
+            mini: true,
+            backgroundColor: const Color(0xFFFF9800), // Orange color
+            onPressed: _uploadMultiplePhotosToBackend,
+            child: const Icon(
+              Icons.photo_library,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+        ),
         // Upload Selected Photo Button
         Positioned(
           bottom: 100,
