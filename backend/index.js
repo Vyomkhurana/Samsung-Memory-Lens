@@ -535,7 +535,11 @@ app.post("/analyze-image", upload.single("image"), async (req, res) => {
     const allFeatures = [...labels, ...celebrities, ...texts];
     const embedding = buildEmbedding(allFeatures.join(" "), labels);
 
-    // 5. Store in Qdrant
+    // 5. Convert image to base64 for storage and serving
+    const imageBase64 = imageBytes.toString('base64');
+    const filename = `single_image_${Date.now()}.jpg`;
+
+    // 6. Store in Qdrant
     const pointId = uuidv4();
     await qdrant.upsert(COLLECTION_NAME, {
       points: [
@@ -543,10 +547,16 @@ app.post("/analyze-image", upload.single("image"), async (req, res) => {
           id: pointId,
           vector: embedding,
           payload: {
+            filename,
             labels,
             celebrities,
             texts,
             uploadTimestamp: new Date().toISOString(),
+            source: 'single_upload',
+            path: `/api/image/${pointId}`,
+            imageData: imageBase64, // Store base64 image data
+            imageUrl: `/api/image/${pointId}`, // URL to serve the image
+            mimeType: 'image/jpeg'
           },
         },
       ],
@@ -596,7 +606,12 @@ app.get("/api/image/:id", async (req, res) => {
     const mimeType = imageRecord.payload.mimeType || 'image/jpeg';
 
     if (!imageData) {
-      return res.status(404).json({ error: "Image data not found" });
+      // Return a placeholder response for images that don't have stored data
+      return res.status(200).json({ 
+        error: "Image data not available", 
+        filename: imageRecord.payload.filename || 'Unknown',
+        message: "This image was uploaded before image storage was implemented"
+      });
     }
 
     // Convert base64 back to buffer and serve
