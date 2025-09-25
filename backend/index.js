@@ -190,9 +190,12 @@ function semanticSearchWithoutPython(queryText, imageDatabase) {
     });
     
     // Semantic similarity (colors, objects, etc.)
-    score += lightweightSemanticSearch(queryText, labels);
+    const semanticScore = lightweightSemanticSearch(queryText, labels);
+    score += semanticScore;
     
-    if (score > 0.2) { // Lower threshold for better semantic matching
+    // Much higher threshold to prevent false positives
+    // Only include images with strong relevance (direct matches or strong semantic similarity)
+    if (score > 1.5) { // Require strong relevance to prevent random matches
       results.push({
         ...image,
         score: score,
@@ -205,49 +208,55 @@ function semanticSearchWithoutPython(queryText, imageDatabase) {
   return results.sort((a, b) => b.score - a.score).slice(0, 10);
 }
 function lightweightSemanticSearch(queryText, imageLabels) {
-  // Semantic similarity mappings for common concepts
+  // Enhanced semantic similarity mappings for more accurate matching
   const semanticGroups = {
-    vehicles: ['car', 'vehicle', 'auto', 'truck', 'bus', 'motorcycle', 'bike', 'transport', 'tyre', 'tire', 'wheel', 'engine', 'headlight', 'bumper', 'windshield', 'door', 'steering', 'brake', 'mirror'],
-    people: ['person', 'people', 'human', 'man', 'woman', 'child', 'face', 'portrait'],
-    celebrities: ['celebrity', 'celebrities', 'famous', 'star', 'actor', 'actress', 'singer', 'musician'],
-    animals: ['animal', 'cat', 'dog', 'pet', 'wildlife', 'bird', 'horse', 'cow'],
-    colors: ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'black', 'white'],
-    nature: ['tree', 'flower', 'plant', 'garden', 'forest', 'landscape', 'nature', 'outdoor'],
-    food: ['food', 'meal', 'dinner', 'lunch', 'breakfast', 'restaurant', 'cooking', 'eat'],
-    buildings: ['building', 'house', 'home', 'architecture', 'city', 'urban', 'street'],
-    water: ['water', 'sea', 'ocean', 'lake', 'river', 'beach', 'swimming', 'boat']
+    vehicles: ['car', 'vehicle', 'auto', 'automobile', 'truck', 'bus', 'motorcycle', 'bike', 'transport', 'tyre', 'tire', 'wheel', 'engine', 'headlight', 'bumper', 'windshield', 'door', 'steering', 'brake', 'mirror', 'sedan', 'suv', 'van'],
+    people: ['person', 'people', 'human', 'man', 'woman', 'child', 'face', 'portrait', 'individual'],
+    celebrities: ['celebrity', 'celebrities', 'famous', 'star', 'actor', 'actress', 'singer', 'musician', 'performer'],
+    animals: ['animal', 'cat', 'dog', 'pet', 'wildlife', 'bird', 'horse', 'cow', 'elephant', 'tiger', 'lion'],
+    colors: ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'black', 'white', 'brown', 'gray'],
+    nature: ['tree', 'flower', 'plant', 'garden', 'forest', 'landscape', 'nature', 'outdoor', 'grass', 'leaf'],
+    food: ['food', 'meal', 'dinner', 'lunch', 'breakfast', 'restaurant', 'cooking', 'eat', 'dish', 'cuisine'],
+    buildings: ['building', 'house', 'home', 'architecture', 'city', 'urban', 'street', 'construction', 'structure'],
+    water: ['water', 'sea', 'ocean', 'lake', 'river', 'beach', 'swimming', 'boat', 'waves', 'shore']
   };
   
-  const queryWords = queryText.toLowerCase().split(/\s+/);
+  const queryWords = queryText.toLowerCase().split(/\s+/).filter(word => word.length > 2);
   const labelWords = imageLabels.map(label => label.toLowerCase());
   
   let score = 0;
+  let hasDirectMatch = false;
   
-  // Direct word matching
+  // Direct word matching (highest priority)
   for (const queryWord of queryWords) {
-    if (labelWords.includes(queryWord)) {
-      score += 1.0; // Exact match gets highest score
+    if (labelWords.some(label => label.includes(queryWord) || queryWord.includes(label))) {
+      score += 2.0; // Exact match gets highest score
+      hasDirectMatch = true;
     }
   }
   
-  // Semantic group matching
+  // Semantic group matching (only if we have some direct relevance)
   for (const [group, groupWords] of Object.entries(semanticGroups)) {
     const queryInGroup = queryWords.some(word => groupWords.includes(word));
-    const labelInGroup = labelWords.some(word => groupWords.includes(word));
+    const labelInGroup = labelWords.some(label => groupWords.some(groupWord => 
+      label.includes(groupWord) || groupWord.includes(label)
+    ));
     
     if (queryInGroup && labelInGroup) {
-      score += 0.7; // Semantic similarity gets medium score
+      score += hasDirectMatch ? 1.0 : 0.5; // Higher score if we also have direct matches
     }
   }
   
-  // Partial word matching (for plurals, etc.)
-  for (const queryWord of queryWords) {
-    for (const labelWord of labelWords) {
-      if (queryWord.length > 3 && labelWord.includes(queryWord.slice(0, -1))) {
-        score += 0.3;
-      }
-      if (labelWord.length > 3 && queryWord.includes(labelWord.slice(0, -1))) {
-        score += 0.3;
+  // Only add partial matching if we already have some relevance
+  if (hasDirectMatch || score > 0) {
+    for (const queryWord of queryWords) {
+      for (const labelWord of labelWords) {
+        if (queryWord.length > 3 && labelWord.includes(queryWord.slice(0, -1))) {
+          score += 0.2;
+        }
+        if (labelWord.length > 3 && queryWord.includes(labelWord.slice(0, -1))) {
+          score += 0.2;
+        }
       }
     }
   }
@@ -444,6 +453,24 @@ async function searchImagesByStatement(statement) {
           }
         }
         
+        // For object queries, do a quick pre-filter to avoid completely irrelevant images
+        if (!isPersonQuery) {
+          const hasRelevantContent = labels.some(label => {
+            const labelLower = label.toLowerCase();
+            // Check if any label has some relation to the query
+            return labelLower.includes(queryLower) || 
+                   queryLower.includes(labelLower) ||
+                   // For car/vehicle searches, check for vehicle-related terms
+                   (queryLower.match(/car|vehicle|tyre|tire|wheel|auto/) && 
+                    labelLower.match(/car|vehicle|auto|wheel|tire|tyre|transport|motor/));
+          });
+          
+          if (!hasRelevantContent && celebrities.length === 0 && texts.length === 0) {
+            console.log(`   ⏭️  Skipping image with no relevant content: ${labels.slice(0, 3).join(', ')}`);
+            continue;
+          }
+        }
+        
         // Create rich description of the image
         const imageDescription = createImageDescription(labels, celebrities, texts);
         
@@ -454,8 +481,9 @@ async function searchImagesByStatement(statement) {
           // Calculate semantic similarity
           const similarity = cosineSimilarity(queryEmbedding, imageEmbedding);
           
-          // Higher threshold for person queries, lower for object queries
-          const threshold = isPersonQuery ? 0.6 : 0.2;
+          // MUCH higher thresholds to prevent false positives
+          // Person queries need exact matches, object queries need strong semantic similarity
+          const threshold = isPersonQuery ? 0.65 : 0.45;
           
           if (similarity > threshold) {
             result.score = similarity;
@@ -463,9 +491,9 @@ async function searchImagesByStatement(statement) {
             result.imageDescription = imageDescription;
             semanticMatches.push(result);
             
-            console.log(`🧠 Semantic match (${similarity.toFixed(3)}): ${imageDescription.substring(0, 100)}...`);
-          } else if (isPersonQuery) {
-            console.log(`   🚫 Low similarity (${similarity.toFixed(3)}) for person query: ${imageDescription.substring(0, 50)}...`);
+            console.log(`🧠 Strong semantic match (${similarity.toFixed(3)}): ${imageDescription.substring(0, 100)}...`);
+          } else {
+            console.log(`   🚫 Weak similarity (${similarity.toFixed(3)}) - threshold: ${threshold.toFixed(2)}: ${imageDescription.substring(0, 50)}...`);
           }
         }
         
