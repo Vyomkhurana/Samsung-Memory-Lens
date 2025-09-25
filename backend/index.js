@@ -327,33 +327,50 @@ async function searchImagesByStatement(statement) {
 
     let searchResults = [];
     
-    // Step 2: DIRECT CELEBRITY NAME SEARCH - Most important for your use case
+    // Step 2: DIRECT CELEBRITY NAME SEARCH - Most important and highest priority
     console.log("🌟 Step 1: Direct celebrity name search");
     const celebrityMatches = allResults.filter(result => {
       const celebrities = result.payload.celebrities || [];
       if (celebrities.length === 0) return false;
       
-      // Direct celebrity name matching (only use original query, not expanded terms for celebrity names)
+      // Direct celebrity name matching with stricter criteria
       const celebrityMatch = celebrities.some(celeb => {
         const celebLower = celeb.toLowerCase();
+        const queryWords = queryLower.split(' ').filter(word => word.length > 2); // Ignore short words
         
-        // Exact match
-        if (celebLower === queryLower) return true;
+        // Exact match (highest priority)
+        if (celebLower === queryLower) {
+          console.log(`🎯 EXACT celebrity match: "${celebLower}" === "${queryLower}"`);
+          return true;
+        }
         
-        // Partial name match (for "akshay" matching "akshay kumar")
-        if (celebLower.includes(queryLower) || queryLower.includes(celebLower)) return true;
+        // For multi-word queries like "akshay kumar", require both words to match
+        if (queryWords.length >= 2) {
+          const celebWords = celebLower.split(' ');
+          const matchedWords = queryWords.filter(queryWord => 
+            celebWords.some(celebWord => celebWord.includes(queryWord) || queryWord.includes(celebWord))
+          );
+          
+          // Require at least 2 words to match for multi-word celebrity names
+          if (matchedWords.length >= 2) {
+            console.log(`🎯 MULTI-WORD celebrity match: "${celebLower}" matches ${matchedWords.length}/${queryWords.length} words`);
+            return true;
+          }
+        } else {
+          // Single word query - more lenient matching
+          if (celebLower.includes(queryLower) || queryLower.includes(celebLower)) {
+            console.log(`🎯 SINGLE-WORD celebrity match: "${celebLower}" contains "${queryLower}"`);
+            return true;
+          }
+        }
         
-        // Name parts match (for "kumar" matching "akshay kumar")
-        const celebParts = celebLower.split(' ');
-        const queryParts = queryLower.split(' ');
-        return celebParts.some(part => queryParts.includes(part)) ||
-               queryParts.some(part => celebParts.includes(part));
+        return false;
       });
       
       if (celebrityMatch) {
-        result.score = 0.95; // High score for direct celebrity matches
+        result.score = 0.98; // Highest score for direct celebrity matches
         result.matchType = 'celebrity_name';
-        console.log(`🎭 Found celebrity match: ${celebrities.join(', ')}`);
+        console.log(`🎭 Found verified celebrity match: ${celebrities.join(', ')}`);
       }
       
       return celebrityMatch;
@@ -394,9 +411,17 @@ async function searchImagesByStatement(statement) {
       });
     }
     
-    // Step 4: REAL SEMANTIC SEARCH - Using OpenAI embeddings for true semantic understanding
-    if (searchResults.length < 10 && queryEmbedding) {
-      console.log("🌟 Step 3: OpenAI-powered semantic search");
+    // Step 4: SMART SEMANTIC SEARCH - Only when no direct matches found
+    const isPersonQuery = queryLower.split(' ').length >= 2 && 
+                          (queryLower.includes('kumar') || queryLower.includes('singh') || 
+                           queryLower.match(/^[A-Za-z]+ [A-Za-z]+$/)); // Likely a person's name
+    
+    // For person queries, be more restrictive with semantic search
+    const shouldUseSemanticSearch = searchResults.length < (isPersonQuery ? 2 : 10);
+    
+    if (shouldUseSemanticSearch && queryEmbedding) {
+      console.log("🌟 Step 3: Smart semantic search");
+      console.log(`   📝 Person query detected: ${isPersonQuery}`);
       
       const semanticMatches = [];
       
@@ -405,6 +430,19 @@ async function searchImagesByStatement(statement) {
         const labels = result.payload.labels || [];
         const celebrities = result.payload.celebrities || [];
         const texts = result.payload.texts || [];
+        
+        // Skip images that already have celebrity matches for person queries
+        if (isPersonQuery && celebrities.length > 0) {
+          // Only include if the celebrity actually matches the query
+          const celebrityMatch = celebrities.some(celeb => {
+            const celebLower = celeb.toLowerCase();
+            return celebLower.includes(queryLower) || queryLower.includes(celebLower);
+          });
+          if (!celebrityMatch) {
+            console.log(`   ⏭️  Skipping non-matching celebrity image: ${celebrities.join(', ')}`);
+            continue;
+          }
+        }
         
         // Create rich description of the image
         const imageDescription = createImageDescription(labels, celebrities, texts);
@@ -416,19 +454,23 @@ async function searchImagesByStatement(statement) {
           // Calculate semantic similarity
           const similarity = cosineSimilarity(queryEmbedding, imageEmbedding);
           
-          // Only include results with meaningful similarity (threshold: 0.3)
-          if (similarity > 0.3) {
+          // Higher threshold for person queries, lower for object queries
+          const threshold = isPersonQuery ? 0.6 : 0.3;
+          
+          if (similarity > threshold) {
             result.score = similarity;
             result.matchType = 'semantic_ai';
             result.imageDescription = imageDescription;
             semanticMatches.push(result);
             
             console.log(`🧠 Semantic match (${similarity.toFixed(3)}): ${imageDescription.substring(0, 100)}...`);
+          } else if (isPersonQuery) {
+            console.log(`   🚫 Low similarity (${similarity.toFixed(3)}) for person query: ${imageDescription.substring(0, 50)}...`);
           }
         }
         
         // Rate limiting: don't process too many at once
-        if (semanticMatches.length >= 15) break;
+        if (semanticMatches.length >= (isPersonQuery ? 5 : 15)) break;
       }
       
       // Add unique semantic matches
@@ -438,7 +480,7 @@ async function searchImagesByStatement(statement) {
         }
       });
       
-      console.log(`🤖 Found ${semanticMatches.length} semantic AI matches`);
+      console.log(`🤖 Found ${semanticMatches.length} smart semantic matches`);
     }
     
     // Step 5: FALLBACK KEYWORD SEARCH - For when OpenAI is unavailable or no semantic matches
