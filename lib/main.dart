@@ -1140,123 +1140,79 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   Widget _buildVoiceOverlay() {
     return Positioned(
-      bottom: 130,
+      bottom: 150,
       left: 20,
       right: 20,
-      child: AnimatedOpacity(
-        opacity: _recognizedText.isNotEmpty ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 300),
-        child: GlassmorphicContainer(
-          width: double.infinity,
-          height: 120,
-          borderRadius: 24,
-          blur: 30,
-          alignment: Alignment.bottomCenter,
-          border: 2,
-          linearGradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF00D4FF).withOpacity(0.15),
-              const Color(0xFF4FC3F7).withOpacity(0.1),
-            ],
-          ),
-          borderGradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF00D4FF).withOpacity(0.4),
-              const Color(0xFF4FC3F7).withOpacity(0.2),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00D4FF).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.mic, 
-                        color: Color(0xFF00D4FF), 
-                        size: 20
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Listening...',
-                        style: TextStyle(
-                          color: Color(0xFF00D4FF),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (_recognizedText.isNotEmpty) ...[
-                  const SizedBox(height: 16),
+      child: SafeArea(
+        child: AnimatedOpacity(
+          opacity: _recognizedText.isNotEmpty ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 300),
+          child: GlassmorphicContainer(
+            width: double.infinity,
+            height: 50,
+            borderRadius: 20,
+            blur: 20,
+            alignment: Alignment.center,
+            border: 1,
+            linearGradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF00D4FF).withOpacity(0.15),
+                const Color(0xFF4FC3F7).withOpacity(0.1),
+              ],
+            ),
+            borderGradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF00D4FF).withOpacity(0.4),
+                const Color(0xFF4FC3F7).withOpacity(0.2),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
                   Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0A0A0A),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.1),
-                        width: 1,
-                      ),
+                      color: const Color(0xFF00D4FF).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _recognizedText,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w400,
-                            height: 1.4,
-                          ),
-                        ),
-                        if (_isSendingToBackend) ...[
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              SizedBox(
-                                height: 16,
-                                width: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Color(0xFF00D4FF),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Sending to backend...',
-                                style: TextStyle(
-                                  color: Color(0xFF00D4FF),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
+                    child: const Icon(
+                      Icons.mic, 
+                      color: Color(0xFF00D4FF), 
+                      size: 16
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _recognizedText.isNotEmpty ? _recognizedText : 'Listening...',
+                      style: TextStyle(
+                        color: _recognizedText.isNotEmpty ? Colors.white : const Color(0xFF00D4FF),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (_isSendingToBackend)
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      child: const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00D4FF)),
+                        ),
+                      ),
+                    ),
                 ],
-              ],
+              ),
             ),
           ),
         ),
