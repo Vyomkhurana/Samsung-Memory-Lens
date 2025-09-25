@@ -192,7 +192,7 @@ function semanticSearchWithoutPython(queryText, imageDatabase) {
     // Semantic similarity (colors, objects, etc.)
     score += lightweightSemanticSearch(queryText, labels);
     
-    if (score > 0.3) { // Threshold for relevance
+    if (score > 0.2) { // Lower threshold for better semantic matching
       results.push({
         ...image,
         score: score,
@@ -207,7 +207,7 @@ function semanticSearchWithoutPython(queryText, imageDatabase) {
 function lightweightSemanticSearch(queryText, imageLabels) {
   // Semantic similarity mappings for common concepts
   const semanticGroups = {
-    vehicles: ['car', 'vehicle', 'auto', 'truck', 'bus', 'motorcycle', 'bike', 'transport'],
+    vehicles: ['car', 'vehicle', 'auto', 'truck', 'bus', 'motorcycle', 'bike', 'transport', 'tyre', 'tire', 'wheel', 'engine', 'headlight', 'bumper', 'windshield', 'door', 'steering', 'brake', 'mirror'],
     people: ['person', 'people', 'human', 'man', 'woman', 'child', 'face', 'portrait'],
     celebrities: ['celebrity', 'celebrities', 'famous', 'star', 'actor', 'actress', 'singer', 'musician'],
     animals: ['animal', 'cat', 'dog', 'pet', 'wildlife', 'bird', 'horse', 'cow'],
@@ -286,7 +286,7 @@ async function searchImagesByStatement(statement) {
     // If Qdrant is not available, use lightweight semantic search
     if (!isQdrantAvailable) {
       console.log("⚠️ Vector database not available - using lightweight semantic search");
-      return [];
+      return semanticSearchWithoutPython(statement, imageDatabase);
     }
 
     const queryLower = statement.toLowerCase();
@@ -455,7 +455,7 @@ async function searchImagesByStatement(statement) {
           const similarity = cosineSimilarity(queryEmbedding, imageEmbedding);
           
           // Higher threshold for person queries, lower for object queries
-          const threshold = isPersonQuery ? 0.6 : 0.3;
+          const threshold = isPersonQuery ? 0.6 : 0.2;
           
           if (similarity > threshold) {
             result.score = similarity;
