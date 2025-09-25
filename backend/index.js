@@ -152,15 +152,7 @@ function createImageDescription(labels, celebrities, texts) {
   return features.length > 0 ? features.join('. ') : 'No description available';
 }
 
-function simpleHash(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return Math.abs(hash);
-}
+
 
 function semanticSearchWithoutPython(queryText, imageDatabase) {
   console.log(`🔍 Pure JS semantic search for: "${queryText}"`);
@@ -263,7 +255,7 @@ function lightweightSemanticSearch(queryText, imageLabels) {
   return score;
 }
 
-// Enhanced vector embedding function using all available features
+// Simple embedding function for Qdrant storage (fallback when OpenAI is not used for storage)
 function buildEmbedding(text, labels = [], celebrities = [], texts = []) {
   // Combine all available features for richer semantic representation
   const allFeatures = [
@@ -273,8 +265,18 @@ function buildEmbedding(text, labels = [], celebrities = [], texts = []) {
     ...texts.map(t => t.toLowerCase())
   ];
   
-  // Create semantic vector from all features
-  return createTextVector(allFeatures.join(' '), labels);
+  // Create a simple 384-dimensional vector for Qdrant compatibility
+  const vector = new Array(384).fill(0);
+  const combinedText = allFeatures.join(' ');
+  
+  // Simple hash-based embedding for storage purposes
+  for (let i = 0; i < combinedText.length && i < 384; i++) {
+    vector[i % 384] += combinedText.charCodeAt(i) / 255;
+  }
+  
+  // Normalize the vector
+  const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
+  return magnitude > 0 ? vector.map(val => val / magnitude) : vector;
 }
 
 async function searchImagesByStatement(statement) {
