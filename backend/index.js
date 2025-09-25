@@ -193,9 +193,9 @@ function semanticSearchWithoutPython(queryText, imageDatabase) {
     const semanticScore = lightweightSemanticSearch(queryText, labels);
     score += semanticScore;
     
-    // Much higher threshold to prevent false positives
-    // Only include images with strong relevance (direct matches or strong semantic similarity)
-    if (score > 1.5) { // Require strong relevance to prevent random matches
+    // Higher threshold to prevent false positives while allowing semantic matches
+    // Direct matches: 2.0+, Semantic matches: 1.2+, Combined: even higher
+    if (score > 1.0) { // Allow strong semantic relationships like "tyre" -> car
       results.push({
         ...image,
         score: score,
@@ -235,7 +235,7 @@ function lightweightSemanticSearch(queryText, imageLabels) {
     }
   }
   
-  // Semantic group matching (only if we have some direct relevance)
+  // Semantic group matching - this is the key for "tyre" finding cars
   for (const [group, groupWords] of Object.entries(semanticGroups)) {
     const queryInGroup = queryWords.some(word => groupWords.includes(word));
     const labelInGroup = labelWords.some(label => groupWords.some(groupWord => 
@@ -243,7 +243,9 @@ function lightweightSemanticSearch(queryText, imageLabels) {
     ));
     
     if (queryInGroup && labelInGroup) {
-      score += hasDirectMatch ? 1.0 : 0.5; // Higher score if we also have direct matches
+      // For semantic relationships like "tyre" -> car, give strong scores
+      score += 1.2; // Strong semantic match score
+      console.log(`  🔗 Semantic match in ${group}: query has [${queryWords.join(', ')}], labels have [${labelWords.join(', ')}]`);
     }
   }
   
