@@ -6,7 +6,7 @@ import session from "express-session";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { v4 as uuidv4 } from "uuid";
 import AWS from "aws-sdk";
-// Removed PythonShell - using pure JavaScript semantic search!
+import OpenAI from 'openai';
 
 dotenv.config();
 
@@ -34,6 +34,11 @@ AWS.config.update({
 
 const rekognition = new AWS.Rekognition();
 const s3 = new AWS.S3();
+
+// OpenAI Configuration for Real Semantic Search
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // Session middleware
 app.use(
@@ -93,23 +98,58 @@ async function ensureCollectionExists() {
   return true;
 }
 
-// Pure JavaScript semantic search using AWS Rekognition labels
-function createTextVector(text, labels) {
-  // Create semantic vector from AWS Rekognition labels + text
-  const words = text.toLowerCase().split(/\s+/);
-  const allTerms = [...words, ...labels.map(l => l.toLowerCase())];
+// 🧠 REAL SEMANTIC SEARCH using OpenAI Embeddings
+async function getEmbedding(text) {
+  try {
+    const response = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: text,
+      encoding_format: "float",
+    });
+    
+    return response.data[0].embedding;
+  } catch (error) {
+    console.error("❌ Error getting OpenAI embedding:", error);
+    return null;
+  }
+}
+
+// Calculate cosine similarity between two vectors
+function cosineSimilarity(vecA, vecB) {
+  if (!vecA || !vecB || vecA.length !== vecB.length) return 0;
   
-  // Create a simple 384-dimensional vector based on semantic hashing
-  const vector = new Array(384).fill(0);
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
   
-  allTerms.forEach((term, i) => {
-    const hash = simpleHash(term) % 384;
-    vector[hash] += 1.0 / (i + 1); // Weight earlier terms more
-  });
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
   
-  // Normalize vector
-  const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
-  return magnitude > 0 ? vector.map(val => val / magnitude) : vector;
+  if (normA === 0 || normB === 0) return 0;
+  
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+// Create semantic description from image features
+function createImageDescription(labels, celebrities, texts) {
+  const features = [];
+  
+  if (labels && labels.length > 0) {
+    features.push(`Objects and scenes: ${labels.join(', ')}`);
+  }
+  
+  if (celebrities && celebrities.length > 0) {
+    features.push(`People: ${celebrities.join(', ')}`);
+  }
+  
+  if (texts && texts.length > 0) {
+    features.push(`Text content: ${texts.join(', ')}`);
+  }
+  
+  return features.length > 0 ? features.join('. ') : 'No description available';
 }
 
 function simpleHash(str) {
@@ -250,6 +290,17 @@ async function searchImagesByStatement(statement) {
     const queryLower = statement.toLowerCase();
     console.log(`📝 Query analysis: "${queryLower}"`);
     
+    // 🧠 REAL SEMANTIC SEARCH using OpenAI Embeddings
+    console.log("🤖 Getting OpenAI embedding for query...");
+    const queryEmbedding = await getEmbedding(queryLower);
+    
+    if (!queryEmbedding) {
+      console.log("❌ Failed to get query embedding, falling back to keyword search");
+      // Will use the old keyword search as fallback
+    } else {
+      console.log("✅ OpenAI embedding obtained successfully");
+    }
+    
     // Step 1: Get ALL images from database first (we need to search payloads directly)
     let allResults = [];
     try {
@@ -280,7 +331,7 @@ async function searchImagesByStatement(statement) {
       const celebrities = result.payload.celebrities || [];
       if (celebrities.length === 0) return false;
       
-      // Direct celebrity name matching
+      // Direct celebrity name matching (only use original query, not expanded terms for celebrity names)
       const celebrityMatch = celebrities.some(celeb => {
         const celebLower = celeb.toLowerCase();
         
@@ -341,11 +392,58 @@ async function searchImagesByStatement(statement) {
       });
     }
     
-    // Step 4: LABEL SEARCH - For objects, scenes, etc.
-    if (searchResults.length < 5) {
-      console.log("🌟 Step 3: Label-based search");
+    // Step 4: REAL SEMANTIC SEARCH - Using OpenAI embeddings for true semantic understanding
+    if (searchResults.length < 10 && queryEmbedding) {
+      console.log("🌟 Step 3: OpenAI-powered semantic search");
       
-      const labelMatches = allResults.filter(result => {
+      const semanticMatches = [];
+      
+      // Calculate semantic similarity for each image
+      for (const result of allResults) {
+        const labels = result.payload.labels || [];
+        const celebrities = result.payload.celebrities || [];
+        const texts = result.payload.texts || [];
+        
+        // Create rich description of the image
+        const imageDescription = createImageDescription(labels, celebrities, texts);
+        
+        // Get embedding for image description
+        const imageEmbedding = await getEmbedding(imageDescription);
+        
+        if (imageEmbedding) {
+          // Calculate semantic similarity
+          const similarity = cosineSimilarity(queryEmbedding, imageEmbedding);
+          
+          // Only include results with meaningful similarity (threshold: 0.3)
+          if (similarity > 0.3) {
+            result.score = similarity;
+            result.matchType = 'semantic_ai';
+            result.imageDescription = imageDescription;
+            semanticMatches.push(result);
+            
+            console.log(`🧠 Semantic match (${similarity.toFixed(3)}): ${imageDescription.substring(0, 100)}...`);
+          }
+        }
+        
+        // Rate limiting: don't process too many at once
+        if (semanticMatches.length >= 15) break;
+      }
+      
+      // Add unique semantic matches
+      semanticMatches.forEach(match => {
+        if (!searchResults.find(existing => existing.id === match.id)) {
+          searchResults.push(match);
+        }
+      });
+      
+      console.log(`🤖 Found ${semanticMatches.length} semantic AI matches`);
+    }
+    
+    // Step 5: FALLBACK KEYWORD SEARCH - For when OpenAI is unavailable or no semantic matches
+    if (searchResults.length < 5) {
+      console.log("🌟 Step 4: Fallback keyword search");
+      
+      const keywordMatches = allResults.filter(result => {
         const labels = result.payload.labels || [];
         
         const labelMatch = labels.some(label => {
@@ -354,25 +452,25 @@ async function searchImagesByStatement(statement) {
         });
         
         if (labelMatch) {
-          result.score = 0.7;
-          result.matchType = 'label';
-          console.log(`🏷️ Found label match: ${labels.join(', ')}`);
+          result.score = 0.5; // Lower score for keyword matches
+          result.matchType = 'keyword';
+          console.log(`🔍 Keyword match: ${labels.join(', ')}`);
         }
         
         return labelMatch;
       });
       
-      // Add unique label matches
-      labelMatches.forEach(match => {
+      // Add unique keyword matches
+      keywordMatches.forEach(match => {
         if (!searchResults.find(existing => existing.id === match.id)) {
           searchResults.push(match);
         }
       });
     }
     
-    // Step 5: TEXT SEARCH - For OCR text content
+    // Step 6: TEXT SEARCH - For OCR text content
     if (searchResults.length < 5) {
-      console.log("🌟 Step 4: Text content search");
+      console.log("🌟 Step 5: Text content search");
       
       const textMatches = allResults.filter(result => {
         const texts = result.payload.texts || [];

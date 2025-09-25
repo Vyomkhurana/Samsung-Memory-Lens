@@ -24,6 +24,15 @@ class VoiceRecordingService {
         },
         onError: (error) {
           print('Speech error: $error');
+          print('Error type: ${error.errorMsg}');
+          print('Error permanent: ${error.permanent}');
+          
+          // Special handling for no_match errors
+          if (error.errorMsg == 'error_no_match') {
+            print('⚠️ No match error - this might be due to short words or background noise');
+            print('💡 Try speaking more clearly or using longer phrases');
+          }
+          
           _isListening = false;
         },
       );
@@ -49,7 +58,19 @@ class VoiceRecordingService {
     return true;
   }
 
-  // Start listening for voice
+  // Get available locales for debugging
+  static Future<List<dynamic>> getAvailableLocales() async {
+    try {
+      var locales = await _speech.locales();
+      print('Available locales: ${locales.map((l) => '${l.localeId} - ${l.name}').join(', ')}');
+      return locales;
+    } catch (e) {
+      print('Error getting locales: $e');
+      return [];
+    }
+  }
+
+  // Start listening for voice with optimized settings for short words
   static Future<bool> startListening({
     required Function(String) onResult,
     Function(String)? onPartialResult,
@@ -61,7 +82,7 @@ class VoiceRecordingService {
       print('Already listening, stopping first');
       await stopListening();
       // Wait a bit before starting again
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 300));
     }
 
     try {
@@ -76,7 +97,7 @@ class VoiceRecordingService {
       await _speech.listen(
         onResult: (result) {
           print(
-            'Speech result: ${result.recognizedWords}, final: ${result.finalResult}',
+            'Speech result: "${result.recognizedWords}", confidence: ${result.confidence}, final: ${result.finalResult}',
           );
           _recognizedText = result.recognizedWords;
 
@@ -88,11 +109,12 @@ class VoiceRecordingService {
           }
         },
         listenFor: const Duration(seconds: 30),
-        pauseFor: const Duration(seconds: 3),
+        pauseFor: const Duration(seconds: 2),
         listenOptions: SpeechListenOptions(
           partialResults: true,
           cancelOnError: false,
-          listenMode: ListenMode.confirmation,
+          listenMode: ListenMode.dictation,
+          enableHapticFeedback: true,
         ),
         localeId: 'en_US',
       );
