@@ -156,7 +156,17 @@ async function getImageSemanticDescription(imageUrl, query) {
       max_tokens: 300
     });
 
-    const result = JSON.parse(response.choices[0].message.content);
+    let content = response.choices[0].message.content.trim();
+    
+    // Handle markdown-wrapped JSON
+    if (content.startsWith('```json')) {
+      content = content.replace(/```json\s*/, '').replace(/\s*```$/, '');
+    }
+    if (content.startsWith('```')) {
+      content = content.replace(/```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    const result = JSON.parse(content);
     console.log(`🎯 Semantic analysis: ${result.explanation} (relevance: ${result.semantic_relevance})`);
     
     return result;
