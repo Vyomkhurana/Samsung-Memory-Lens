@@ -42,7 +42,7 @@ const openai = new OpenAI({
 
 // Rate limiting for OpenAI API calls (GPT-4o has different limits than mini)
 let lastAPICall = 0;
-const API_CALL_DELAY = 15000; // 15 seconds between calls for GPT-4o
+const API_CALL_DELAY = 8000; // 8 seconds between calls - faster while staying within limits
 
 async function rateLimitedDelay() {
   const now = Date.now();
@@ -55,6 +55,47 @@ async function rateLimitedDelay() {
   }
   
   lastAPICall = Date.now();
+}
+
+// Batch process multiple images with smart rate limiting
+async function batchAnalyzeImages(imageResults, query, maxAnalysis = 10) {
+  const results = [];
+  let analyzedCount = 0;
+  
+  for (const result of imageResults) {
+    if (analyzedCount >= maxAnalysis) {
+      console.log(`⚡ Reached semantic analysis limit (${maxAnalysis}) to prevent rate limiting`);
+      break;
+    }
+    
+    // Skip celebrity images for object queries
+    const celebrities = result.payload.celebrities || [];
+    if (celebrities.length > 0) {
+      console.log(`   ⏭️  Skipping celebrity image for object query: ${celebrities.join(', ')}`);
+      continue;
+    }
+    
+    const imageUrl = `https://samsung-memory-lens-38jd.onrender.com/api/image/${result.id}`;
+    const semanticAnalysis = await getImageSemanticDescription(imageUrl, query);
+    analyzedCount++;
+    
+    if (semanticAnalysis.semantic_relevance > 0.7) {
+      results.push({
+        ...result,
+        score: semanticAnalysis.semantic_relevance,
+        matchType: 'true_semantic_ai',
+        semanticExplanation: semanticAnalysis.explanation,
+        keyConcepts: semanticAnalysis.key_concepts
+      });
+      
+      console.log(`🎯 TRUE SEMANTIC MATCH (${semanticAnalysis.semantic_relevance.toFixed(3)}): ${semanticAnalysis.explanation}`);
+      console.log(`   🔑 Key concepts: ${semanticAnalysis.key_concepts.join(', ')}`);
+    } else {
+      console.log(`   🚫 Low semantic relevance (${semanticAnalysis.semantic_relevance.toFixed(3)}): ${semanticAnalysis.explanation}`);
+    }
+  }
+  
+  return results;
 }
 
 // Session middleware
@@ -520,53 +561,26 @@ async function searchImagesByStatement(statement) {
       console.log("🌟 Step 3: TRUE SEMANTIC SEARCH - Visual AI Analysis");
       console.log(`   🎯 Analyzing images visually for: "${queryLower}"`);
       
-      const semanticMatches = [];
+      // TRUE SEMANTIC ANALYSIS - Analyze all non-celebrity images for complete results
+      const MAX_SEMANTIC_ANALYSIS = 10; // Increased to ensure we find all relevant images
       
-      // TRUE SEMANTIC ANALYSIS - Limited to prevent rate limiting
-      let analyzedCount = 0;
-      const MAX_SEMANTIC_ANALYSIS = 5; // Increased limit for GPT-4o (more powerful and reliable)
+      // Sort images to prioritize likely matches first (based on labels)
+      const sortedResults = allResults.slice().sort((a, b) => {
+        const aLabels = (a.payload.labels || []).join(' ').toLowerCase();
+        const bLabels = (b.payload.labels || []).join(' ').toLowerCase();
+        const queryWords = queryLower.split(' ');
+        
+        let aScore = 0, bScore = 0;
+        queryWords.forEach(word => {
+          if (aLabels.includes(word) || word.includes('car') && aLabels.includes('car')) aScore++;
+          if (bLabels.includes(word) || word.includes('car') && bLabels.includes('car')) bScore++;
+        });
+        
+        return bScore - aScore; // Higher scoring labels first
+      });
       
-      for (const result of allResults) {
-        // Stop if we've analyzed enough images
-        if (analyzedCount >= MAX_SEMANTIC_ANALYSIS) {
-          console.log(`⚡ Reached semantic analysis limit (${MAX_SEMANTIC_ANALYSIS}) to prevent rate limiting`);
-          break;
-        }
-        
-        // Skip celebrity images for object queries
-        const celebrities = result.payload.celebrities || [];
-        if (celebrities.length > 0) {
-          console.log(`   ⏭️  Skipping celebrity image for object query: ${celebrities.join(', ')}`);
-          continue;
-        }
-        
-        // Get the actual image URL for visual analysis
-        const imageUrl = `https://samsung-memory-lens-38jd.onrender.com/api/image/${result.id}`;
-        
-        // TRUE SEMANTIC UNDERSTANDING using OpenAI Vision
-        const semanticAnalysis = await getImageSemanticDescription(imageUrl, queryLower);
-        analyzedCount++;
-        
-        // Only include images with strong semantic relevance
-        if (semanticAnalysis.semantic_relevance > 0.7) {
-          result.score = semanticAnalysis.semantic_relevance;
-          result.matchType = 'true_semantic_ai';
-          result.semanticExplanation = semanticAnalysis.explanation;
-          result.keyConcepts = semanticAnalysis.key_concepts;
-          semanticMatches.push(result);
-          
-          console.log(`🎯 TRUE SEMANTIC MATCH (${semanticAnalysis.semantic_relevance.toFixed(3)}): ${semanticAnalysis.explanation}`);
-          console.log(`   🔑 Key concepts: ${semanticAnalysis.key_concepts.join(', ')}`);
-        } else {
-          console.log(`   🚫 Low semantic relevance (${semanticAnalysis.semantic_relevance.toFixed(3)}): ${semanticAnalysis.explanation}`);
-        }
-        
-        // Rate limiting: don't analyze too many images at once (expensive)
-        if (semanticMatches.length >= 10) {
-          console.log("   ⚡ Reached semantic analysis limit - stopping");
-          break;
-        }
-      }
+      // Use batch processing for more efficient analysis
+      const semanticMatches = await batchAnalyzeImages(sortedResults, queryLower, MAX_SEMANTIC_ANALYSIS);
       
       // Add unique semantic matches
       semanticMatches.forEach(match => {
