@@ -19,31 +19,72 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Samsung Memory Lens',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF00D4FF),
-          secondary: Color(0xFF4FC3F7),
-          surface: Color(0xFF121212),
-          background: Color(0xFF0A0A0A),
-          onSurface: Color(0xFFE1E1E1),
+          primary: Color(0xFF1976D2), // Samsung Blue
+          secondary: Color(0xFF00BCD4), // Samsung Cyan
+          tertiary: Color(0xFF9C27B0), // Samsung Purple
+          surface: Color(0xFF1E1E1E),
+          background: Color(0xFF000000), // Deep black like Samsung Galaxy
+          onSurface: Color(0xFFFFFFFF),
           onBackground: Color(0xFFFFFFFF),
-          tertiary: Color(0xFF9C27B0),
+          surfaceVariant: Color(0xFF2D2D2D),
         ),
-        scaffoldBackgroundColor: const Color(0xFF0A0A0A),
+        scaffoldBackgroundColor: const Color(0xFF000000),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
           elevation: 0,
           scrolledUnderElevation: 0,
           foregroundColor: Colors.white,
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
         ),
         cardTheme: CardThemeData(
           color: const Color(0xFF1E1E1E),
-          elevation: 8,
-          shadowColor: Colors.black54,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 12,
+          shadowColor: const Color(0xFF1976D2).withOpacity(0.3),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1976D2),
+            foregroundColor: Colors.white,
+            elevation: 8,
+            shadowColor: const Color(0xFF1976D2).withOpacity(0.5),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          ),
+        ),
+        textTheme: const TextTheme(
+          headlineLarge: TextStyle(
+            color: Colors.white,
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+          ),
+          headlineMedium: TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+          bodyLarge: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w400,
+          ),
+          bodyMedium: TextStyle(
+            color: Color(0xFFB0B0B0),
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+          ),
         ),
         useMaterial3: true,
-        fontFamily: 'SF Pro Display',
       ),
       home: const GalleryScreen(),
     );
@@ -650,36 +691,48 @@ class _GalleryScreenState extends State<GalleryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
+      backgroundColor: const Color(0xFF000000),
       extendBodyBehindAppBar: true,
       appBar: AppBar(
+        titleSpacing: 16,
+        toolbarHeight: 70,
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF00D4FF), Color(0xFF0099CC)],
+                  colors: [Color(0xFF1976D2), Color(0xFF1565C0)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF00D4FF).withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+                    color: const Color(0xFF1976D2).withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: const Icon(Icons.photo_library, color: Colors.white, size: 20),
+              child: const Icon(
+                Icons.camera_alt_rounded, 
+                color: Colors.white, 
+                size: 18,
+              ),
             ),
             const SizedBox(width: 12),
-            const Text(
-              'Samsung Memory Lens',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 20,
-                letterSpacing: 0.5,
+            const Flexible(
+              child: Text(
+                'Samsung Memory Lens',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  letterSpacing: -0.5,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -687,66 +740,91 @@ class _GalleryScreenState extends State<GalleryScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        flexibleSpace: GlassmorphicContainer(
-          width: double.infinity,
-          height: double.infinity,
-          borderRadius: 0,
-          blur: 20,
-          alignment: Alignment.bottomCenter,
-          border: 0,
-          linearGradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF00D4FF).withOpacity(0.1),
-              const Color(0xFF4FC3F7).withOpacity(0.05),
-            ],
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                const Color(0xFF000000).withOpacity(0.95),
+                const Color(0xFF000000).withOpacity(0.8),
+                Colors.transparent,
+              ],
+            ),
           ),
-          borderGradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF00D4FF).withOpacity(0.2),
-              const Color(0xFF4FC3F7).withOpacity(0.1),
-            ],
+          child: GlassmorphicContainer(
+            width: double.infinity,
+            height: double.infinity,
+            borderRadius: 0,
+            blur: 25,
+            alignment: Alignment.bottomCenter,
+            border: 0,
+            linearGradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF1976D2).withOpacity(0.15),
+                const Color(0xFF00BCD4).withOpacity(0.08),
+                Colors.transparent,
+              ],
+            ),
+            borderGradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF1976D2).withOpacity(0.3),
+                const Color(0xFF00BCD4).withOpacity(0.1),
+              ],
+            ),
           ),
         ),
         actions: [
-          // Professional directory picker
+          // Samsung-style directory picker
           Container(
             margin: const EdgeInsets.only(right: 16),
             child: PopupMenuButton<String>(
               icon: Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E1E),
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF1976D2).withOpacity(0.2),
+                      const Color(0xFF1565C0).withOpacity(0.1),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: const Color(0xFF00D4FF).withOpacity(0.3),
-                    width: 1,
+                    color: const Color(0xFF1976D2).withOpacity(0.4),
+                    width: 1.5,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      color: const Color(0xFF1976D2).withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                      spreadRadius: 1,
                     ),
                   ],
                 ),
                 child: const Icon(
-                  Icons.folder_open, 
-                  color: Color(0xFF00D4FF), 
-                  size: 18
+                  Icons.folder_rounded, 
+                  color: Color(0xFF1976D2), 
+                  size: 20
                 ),
               ),
               color: const Color(0xFF1E1E1E),
+              surfaceTintColor: const Color(0xFF1976D2),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
                 side: BorderSide(
-                  color: const Color(0xFF00D4FF).withOpacity(0.3),
+                  color: const Color(0xFF1976D2).withOpacity(0.3),
                   width: 1,
                 ),
               ),
+              elevation: 12,
+              shadowColor: const Color(0xFF1976D2).withOpacity(0.4),
               onSelected: (value) {
                 if (value == 'custom') {
                   _pickCustomDirectory();
@@ -755,21 +833,35 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 }
               },
               itemBuilder: (context) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'Camera', 
-                  child: Row(children: [
-                    Icon(Icons.camera_alt, size: 18, color: Color(0xFF00D4FF)), 
-                    SizedBox(width: 12), 
-                    Text('Camera', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500))
-                  ])
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: const Row(children: [
+                      Icon(Icons.camera_alt_rounded, size: 20, color: Color(0xFF1976D2)), 
+                      SizedBox(width: 16), 
+                      Text('Camera', style: TextStyle(
+                        color: Colors.white, 
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ))
+                    ]),
+                  )
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'Download', 
-                  child: Row(children: [
-                    Icon(Icons.download, size: 18, color: Color(0xFF00D4FF)), 
-                    SizedBox(width: 12), 
-                    Text('Downloads', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500))
-                  ])
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: const Row(children: [
+                      Icon(Icons.download_rounded, size: 20, color: Color(0xFF1976D2)), 
+                      SizedBox(width: 16), 
+                      Text('Downloads', style: TextStyle(
+                        color: Colors.white, 
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ))
+                    ]),
+                  )
                 ),
                 const PopupMenuItem(
                   value: 'Screenshot', 
@@ -800,10 +892,23 @@ class _GalleryScreenState extends State<GalleryScreen> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          // Main content
-          Column(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.topCenter,
+            radius: 1.5,
+            colors: [
+              Color(0xFF1976D2), // Samsung blue at center
+              Color(0xFF0D47A1), // Darker blue
+              Color(0xFF000000), // Deep black at edges
+            ],
+            stops: [0.0, 0.3, 1.0],
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Main content
+            Column(
             children: [
               const SizedBox(height: 100), // Space for transparent app bar
               // Source indicator
@@ -818,9 +923,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
           if (_hasPermission) _buildFloatingMicButton(),
           // Test button for backend (temporary)
           if (_hasPermission) _buildTestButton(),
-          // Voice recognition overlay
-          if (_recognizedText.isNotEmpty) _buildVoiceOverlay(),
-        ],
+            // Voice recognition overlay
+            if (_recognizedText.isNotEmpty) _buildVoiceOverlay(),
+          ],
+        ),
       ),
     );
   }
@@ -883,10 +989,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Widget _buildFloatingMicButton() {
-    // Calculate dynamic size based on speaking activity
-    double buttonSize = _isListening ? 70 : 65;
+    // Samsung-style dynamic button sizing with premium feel
+    double buttonSize = _isListening ? 75 : 70;
     if (_isSpeaking) {
-      buttonSize = 70 + (_soundLevel * 10); // Pulsing effect
+      buttonSize = 75 + (_soundLevel * 12); // Enhanced pulsing effect
     }
     
     return Positioned(
@@ -899,51 +1005,69 @@ class _GalleryScreenState extends State<GalleryScreen> {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // YouTube-style expanding circles when listening
+              // Samsung-style expanding pulse circles when listening
               if (_isListening) ...[
-                // Outer pulse circle
+                // Outer pulse circle - Samsung blue
                 AnimatedContainer(
                   duration: Duration(milliseconds: _isSpeaking ? 300 : 800),
-                  height: _isSpeaking ? 140 + (_soundLevel * 20) : 120,
-                  width: _isSpeaking ? 140 + (_soundLevel * 20) : 120,
+                  height: _isSpeaking ? 160 + (_soundLevel * 25) : 140,
+                  width: _isSpeaking ? 160 + (_soundLevel * 25) : 140,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.transparent,
+                        const Color(0xFF1976D2).withOpacity(_isSpeaking ? 0.4 : 0.2),
+                      ],
+                    ),
                     border: Border.all(
-                      color: const Color(0xFFFF4444).withOpacity(_isSpeaking ? 0.6 : 0.3),
-                      width: 2,
+                      color: const Color(0xFF1976D2).withOpacity(_isSpeaking ? 0.6 : 0.3),
+                      width: 2.5,
                     ),
                   ),
                 ),
-                // Middle pulse circle
+                // Middle pulse circle - Samsung cyan
                 AnimatedContainer(
                   duration: Duration(milliseconds: _isSpeaking ? 200 : 600),
-                  height: _isSpeaking ? 110 + (_soundLevel * 15) : 95,
-                  width: _isSpeaking ? 110 + (_soundLevel * 15) : 95,
+                  height: _isSpeaking ? 125 + (_soundLevel * 18) : 110,
+                  width: _isSpeaking ? 125 + (_soundLevel * 18) : 110,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.transparent,
+                        const Color(0xFF00BCD4).withOpacity(_isSpeaking ? 0.5 : 0.3),
+                      ],
+                    ),
                     border: Border.all(
-                      color: const Color(0xFFFF4444).withOpacity(_isSpeaking ? 0.8 : 0.5),
+                      color: const Color(0xFF00BCD4).withOpacity(_isSpeaking ? 0.8 : 0.5),
                       width: 2,
                     ),
                   ),
                 ),
-                // Inner pulse circle
+                // Inner pulse circle - Premium Samsung blue
                 AnimatedContainer(
                   duration: Duration(milliseconds: _isSpeaking ? 100 : 400),
-                  height: _isSpeaking ? 85 + (_soundLevel * 8) : 80,
-                  width: _isSpeaking ? 85 + (_soundLevel * 8) : 80,
+                  height: _isSpeaking ? 95 + (_soundLevel * 12) : 85,
+                  width: _isSpeaking ? 95 + (_soundLevel * 12) : 85,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.transparent,
+                        const Color(0xFF1976D2).withOpacity(_isSpeaking ? 0.7 : 0.4),
+                      ],
+                    ),
                     border: Border.all(
-                      color: const Color(0xFFFF4444).withOpacity(_isSpeaking ? 1.0 : 0.7),
-                      width: 1.5,
+                      color: const Color(0xFF1976D2).withOpacity(_isSpeaking ? 1.0 : 0.7),
+                      width: 2,
                     ),
                   ),
                 ),
               ],
-              // Main button with YouTube-style pulsing
+              // Samsung premium main button with dynamic effects
               AnimatedContainer(
-                duration: Duration(milliseconds: _isSpeaking ? 150 : 200),
+                duration: Duration(milliseconds: _isSpeaking ? 120 : 180),
                 height: buttonSize,
                 width: buttonSize,
                 decoration: BoxDecoration(
@@ -953,34 +1077,69 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     end: Alignment.bottomRight,
                     colors: _isListening 
                       ? [
-                          Color.lerp(const Color(0xFFFF4444), const Color(0xFFFF6666), _soundLevel)!,
-                          Color.lerp(const Color(0xFFCC1111), const Color(0xFFEE3333), _soundLevel)!,
+                          Color.lerp(const Color(0xFF1976D2), const Color(0xFF2196F3), _soundLevel)!,
+                          Color.lerp(const Color(0xFF1565C0), const Color(0xFF1976D2), _soundLevel)!,
+                          Color.lerp(const Color(0xFF0D47A1), const Color(0xFF1565C0), _soundLevel)!,
                         ]
-                      : [const Color(0xFF00D4FF), const Color(0xFF0099CC)],
+                      : [
+                          const Color(0xFF1976D2), 
+                          const Color(0xFF1565C0),
+                          const Color(0xFF0D47A1),
+                        ],
+                  ),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.2),
+                    width: 1.5,
                   ),
                   boxShadow: [
+                    // Primary Samsung blue glow
                     BoxShadow(
-                      color: (_isListening 
-                        ? const Color(0xFFFF4444) 
-                        : const Color(0xFF00D4FF)).withOpacity(_isSpeaking ? 0.8 : 0.4),
-                      blurRadius: _isSpeaking ? 30 + (_soundLevel * 10) : (_isListening ? 25 : 20),
-                      offset: const Offset(0, 10),
-                      spreadRadius: _isSpeaking ? 8 + (_soundLevel * 3) : (_isListening ? 5 : 2),
+                      color: const Color(0xFF1976D2).withOpacity(_isSpeaking ? 0.8 : 0.5),
+                      blurRadius: _isSpeaking ? 35 + (_soundLevel * 15) : (_isListening ? 30 : 25),
+                      offset: const Offset(0, 8),
+                      spreadRadius: _isSpeaking ? 10 + (_soundLevel * 4) : (_isListening ? 6 : 3),
                     ),
+                    // Cyan accent glow
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
+                      color: const Color(0xFF00BCD4).withOpacity(_isSpeaking ? 0.6 : 0.3),
+                      blurRadius: _isSpeaking ? 25 + (_soundLevel * 8) : (_isListening ? 20 : 15),
+                      offset: const Offset(0, 4),
+                      spreadRadius: _isSpeaking ? 5 + (_soundLevel * 2) : (_isListening ? 3 : 1),
+                    ),
+                    // Deep shadow for depth
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 12),
+                      spreadRadius: 2,
                     ),
                   ],
                 ),
                 child: AnimatedScale(
-                  duration: Duration(milliseconds: _isSpeaking ? 100 : 200),
-                  scale: _isSpeaking ? 1.0 + (_soundLevel * 0.2) : 1.0,
-                  child: Icon(
-                    _isListening ? Icons.mic : Icons.mic_outlined,
-                    color: Colors.white,
-                    size: _isSpeaking ? 32 + (_soundLevel * 4) : (_isListening ? 30 : 28),
+                  duration: Duration(milliseconds: _isSpeaking ? 80 : 160),
+                  scale: _isSpeaking ? 1.0 + (_soundLevel * 0.25) : 1.0,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          Colors.white.withOpacity(0.1),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                    child: Icon(
+                      _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
+                      color: Colors.white,
+                      size: _isSpeaking ? 34 + (_soundLevel * 5) : (_isListening ? 32 : 30),
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.3),
+                          offset: const Offset(0, 2),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -995,76 +1154,94 @@ class _GalleryScreenState extends State<GalleryScreen> {
   Widget _buildTestButton() {
     return Stack(
       children: [
-        // Upload Multiple Photos Button (Bulk Upload) - Glassmorphism
+        // Samsung-style Upload Multiple Photos Button
         Positioned(
           bottom: 160,
           right: 20,
           child: GestureDetector(
             onTap: _uploadMultiplePhotosToBackend,
-            child: GlassmorphicContainer(
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              blur: 20,
-              alignment: Alignment.center,
-              border: 2,
-              linearGradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFFFF9800).withOpacity(0.3),
-                  const Color(0xFFFF6F00).withOpacity(0.2),
-                ],
-              ),
-              borderGradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFFFF9800).withOpacity(0.6),
-                  const Color(0xFFFF6F00).withOpacity(0.4),
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF00BCD4),
+                    Color(0xFF0097A7),
+                    Color(0xFF006064),
+                  ],
+                ),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.2),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF00BCD4).withOpacity(0.4),
+                    blurRadius: 15,
+                    offset: const Offset(0, 6),
+                    spreadRadius: 2,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
                 ],
               ),
               child: const Icon(
-                Icons.photo_library,
+                Icons.photo_library_rounded,
                 color: Colors.white,
-                size: 20,
+                size: 24,
               ),
             ),
           ),
         ),
-        // Upload Selected Photo Button - Glassmorphism
+        // Samsung-style Upload Selected Photo Button
         Positioned(
           bottom: 100,
           right: 20,
           child: GestureDetector(
             onTap: _uploadSelectedPhotoToBackend,
-            child: GlassmorphicContainer(
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              blur: 20,
-              alignment: Alignment.center,
-              border: 2,
-              linearGradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFF2196F3).withOpacity(0.3),
-                  const Color(0xFF1976D2).withOpacity(0.2),
-                ],
-              ),
-              borderGradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFF2196F3).withOpacity(0.6),
-                  const Color(0xFF1976D2).withOpacity(0.4),
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF1976D2),
+                    Color(0xFF1565C0),
+                    Color(0xFF0D47A1),
+                  ],
+                ),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.2),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1976D2).withOpacity(0.4),
+                    blurRadius: 15,
+                    offset: const Offset(0, 6),
+                    spreadRadius: 2,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
                 ],
               ),
               child: const Icon(
-                Icons.add_photo_alternate,
+                Icons.add_photo_alternate_rounded,
                 color: Colors.white,
-                size: 20,
+                size: 24,
               ),
             ),
           ),
