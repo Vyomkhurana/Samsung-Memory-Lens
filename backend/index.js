@@ -98,7 +98,7 @@ async function ensureCollectionExists() {
   return true;
 }
 
-// 🧠 REAL SEMANTIC SEARCH using OpenAI Embeddings
+// 🧠 TRUE SEMANTIC SEARCH using OpenAI Vision + Embeddings
 async function getEmbedding(text) {
   try {
     const response = await openai.embeddings.create({
@@ -111,6 +111,62 @@ async function getEmbedding(text) {
   } catch (error) {
     console.error("❌ Error getting OpenAI embedding:", error);
     return null;
+  }
+}
+
+// 🔍 REAL SEMANTIC IMAGE UNDERSTANDING - No hardcoded labels!
+async function getImageSemanticDescription(imageUrl, query) {
+  try {
+    console.log(`🤖 Analyzing image semantically for query: "${query}"`);
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini", // Vision model
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Analyze this image and determine how semantically related it is to "${query}". 
+              
+              Consider:
+              - Visual content and objects
+              - Scene context and setting  
+              - Activities or situations shown
+              - Conceptual relationships (e.g. "tyre" relates to cars, "waves" relates to ocean)
+              
+              Respond with a JSON object:
+              {
+                "semantic_relevance": 0.0-1.0,
+                "explanation": "Brief explanation of relationship",
+                "key_concepts": ["concept1", "concept2", "concept3"]
+              }
+              
+              Be strict - only high relevance (>0.7) for strong semantic matches.`
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: imageUrl
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 300
+    });
+
+    const result = JSON.parse(response.choices[0].message.content);
+    console.log(`🎯 Semantic analysis: ${result.explanation} (relevance: ${result.semantic_relevance})`);
+    
+    return result;
+  } catch (error) {
+    console.error("❌ Error in semantic image analysis:", error);
+    return {
+      semantic_relevance: 0.0,
+      explanation: "Analysis failed",
+      key_concepts: []
+    };
   }
 }
 
@@ -154,112 +210,112 @@ function createImageDescription(labels, celebrities, texts) {
 
 
 
-function semanticSearchWithoutPython(queryText, imageDatabase) {
-  console.log(`🔍 Pure JS semantic search for: "${queryText}"`);
+async function semanticSearchWithoutPython(queryText, imageDatabase) {
+  console.log(`🔍 TRUE SEMANTIC SEARCH (fallback mode) for: "${queryText}"`);
   
-  const queryWords = queryText.toLowerCase().split(/\s+/);
   const results = [];
   
-  // Search through stored images using AWS labels
-  imageDatabase.forEach(image => {
-    const labels = image.labels || [];
-    const celebrities = image.celebrities || [];
-    const texts = image.texts || [];
+  // Skip person queries - use celebrity matching instead
+  const isPersonQuery = queryText.toLowerCase().split(' ').length >= 2 && 
+                        queryText.toLowerCase().match(/^[a-z]+ [a-z]+$/);
+  
+  if (isPersonQuery) {
+    console.log("👤 Person query detected - using celebrity matching");
     
-    let score = 0;
-    
-    // Direct label matching (highest score)
-    labels.forEach(label => {
-      if (queryWords.some(word => label.toLowerCase().includes(word))) {
-        score += 1.0;
-      }
-    });
-    
-    // Celebrity matching
-    celebrities.forEach(celebrity => {
-      if (queryWords.some(word => celebrity.toLowerCase().includes(word))) {
-        score += 0.9;
-      }
-    });
-    
-    // Text content matching  
-    texts.forEach(text => {
-      if (queryWords.some(word => text.toLowerCase().includes(word))) {
-        score += 0.8;
-      }
-    });
-    
-    // Semantic similarity (colors, objects, etc.)
-    const semanticScore = lightweightSemanticSearch(queryText, labels);
-    score += semanticScore;
-    
-    // Higher threshold to prevent false positives while allowing semantic matches
-    // Direct matches: 2.0+, Semantic matches: 1.2+, Combined: even higher
-    if (score > 1.0) { // Allow strong semantic relationships like "tyre" -> car
-      results.push({
-        ...image,
-        score: score,
-        source: 'aws_semantic_search'
+    imageDatabase.forEach(image => {
+      const celebrities = image.celebrities || [];
+      let score = 0;
+      
+      celebrities.forEach(celebrity => {
+        if (celebrity.toLowerCase().includes(queryText.toLowerCase())) {
+          score += 2.0;
+        }
       });
+      
+      if (score > 0) {
+        results.push({
+          ...image,
+          score: score,
+          source: 'celebrity_match'
+        });
+      }
+    });
+  } else {
+    console.log("🎯 Object query - attempting TRUE semantic analysis");
+    
+    // Try TRUE semantic search for object queries
+    let semanticCount = 0;
+    
+    for (const image of imageDatabase) {
+      // Rate limit expensive vision API calls
+      if (semanticCount >= 5) {
+        console.log("⚡ Reached semantic analysis limit in fallback mode");
+        break;
+      }
+      
+      try {
+        // Construct image URL (assuming same pattern as main search)
+        const imageUrl = `https://samsung-memory-lens-38jd.onrender.com/api/image/${image.id}`;
+        
+        // TRUE SEMANTIC ANALYSIS
+        const semanticAnalysis = await getImageSemanticDescription(imageUrl, queryText);
+        
+        if (semanticAnalysis.semantic_relevance > 0.7) {
+          results.push({
+            ...image,
+            score: semanticAnalysis.semantic_relevance,
+            source: 'true_semantic_ai',
+            semanticExplanation: semanticAnalysis.explanation,
+            keyConcepts: semanticAnalysis.key_concepts
+          });
+          
+          console.log(`🎯 Semantic match: ${semanticAnalysis.explanation}`);
+        }
+        
+        semanticCount++;
+      } catch (error) {
+        console.log(`⚠️ Semantic analysis failed for image ${image.id}: ${error.message}`);
+        
+        // Fallback to simple direct matching
+        const labels = image.labels || [];
+        const queryWords = queryText.toLowerCase().split(/\s+/);
+        let score = 0;
+        
+        labels.forEach(label => {
+          if (queryWords.some(word => label.toLowerCase().includes(word))) {
+            score += 1.0;
+          }
+        });
+        
+        if (score > 0) {
+          results.push({
+            ...image,
+            score: score,
+            source: 'direct_label_match'
+          });
+        }
+      }
     }
-  });
+  }
   
   // Sort by score descending
   return results.sort((a, b) => b.score - a.score).slice(0, 10);
 }
+// 🚫 DEPRECATED: Old hardcoded label matching approach
+// This function is replaced by TRUE semantic search using OpenAI Vision
 function lightweightSemanticSearch(queryText, imageLabels) {
-  // Enhanced semantic similarity mappings for more accurate matching
-  const semanticGroups = {
-    vehicles: ['car', 'vehicle', 'auto', 'automobile', 'truck', 'bus', 'motorcycle', 'bike', 'transport', 'transportation', 'tyre', 'tire', 'wheel', 'engine', 'headlight', 'bumper', 'windshield', 'door', 'steering', 'brake', 'mirror', 'sedan', 'suv', 'van', 'road', 'street', 'driving', 'parking', 'traffic', 'highway', 'motor', 'automotive'],
-    people: ['person', 'people', 'human', 'man', 'woman', 'child', 'face', 'portrait', 'individual'],
-    celebrities: ['celebrity', 'celebrities', 'famous', 'star', 'actor', 'actress', 'singer', 'musician', 'performer'],
-    animals: ['animal', 'cat', 'dog', 'pet', 'wildlife', 'bird', 'horse', 'cow', 'elephant', 'tiger', 'lion'],
-    colors: ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'black', 'white', 'brown', 'gray'],
-    nature: ['tree', 'flower', 'plant', 'garden', 'forest', 'landscape', 'nature', 'outdoor', 'grass', 'leaf'],
-    food: ['food', 'meal', 'dinner', 'lunch', 'breakfast', 'restaurant', 'cooking', 'eat', 'dish', 'cuisine'],
-    buildings: ['building', 'house', 'home', 'architecture', 'city', 'urban', 'street', 'construction', 'structure'],
-    water: ['water', 'sea', 'ocean', 'lake', 'river', 'beach', 'swimming', 'boat', 'waves', 'shore']
-  };
+  console.log("⚠️ Using deprecated label-matching fallback - upgrade to true semantic search recommended");
   
+  // Simple direct label matching as absolute fallback
   const queryWords = queryText.toLowerCase().split(/\s+/).filter(word => word.length > 2);
   const labelWords = imageLabels.map(label => label.toLowerCase());
   
   let score = 0;
-  let hasDirectMatch = false;
   
-  // Direct word matching (highest priority)
+  // Only direct word matching - no hardcoded semantic groups
   for (const queryWord of queryWords) {
     if (labelWords.some(label => label.includes(queryWord) || queryWord.includes(label))) {
-      score += 2.0; // Exact match gets highest score
-      hasDirectMatch = true;
-    }
-  }
-  
-  // Semantic group matching - this is the key for "tyre" finding cars
-  for (const [group, groupWords] of Object.entries(semanticGroups)) {
-    const queryInGroup = queryWords.some(word => groupWords.includes(word));
-    const labelInGroup = labelWords.some(label => groupWords.some(groupWord => 
-      label.includes(groupWord) || groupWord.includes(label)
-    ));
-    
-    if (queryInGroup && labelInGroup) {
-      // For semantic relationships like "tyre" -> car, give strong scores
-      score += 1.2; // Strong semantic match score
-      console.log(`  🔗 Semantic match in ${group}: query has [${queryWords.join(', ')}], labels have [${labelWords.join(', ')}]`);
-    }
-  }
-  
-  // Only add partial matching if we already have some relevance
-  if (hasDirectMatch || score > 0) {
-    for (const queryWord of queryWords) {
-      for (const labelWord of labelWords) {
-        if (queryWord.length > 3 && labelWord.includes(queryWord.slice(0, -1))) {
-          score += 0.2;
-        }
-        if (labelWord.length > 3 && queryWord.includes(labelWord.slice(0, -1))) {
-          score += 0.2;
-        }
-      }
+      score += 2.0; // Direct match only
     }
   }
   
@@ -422,85 +478,54 @@ async function searchImagesByStatement(statement) {
       });
     }
     
-    // Step 4: SMART SEMANTIC SEARCH - Only when no direct matches found
+    // Step 4: TRUE SEMANTIC SEARCH - Real AI visual understanding
     const isPersonQuery = queryLower.split(' ').length >= 2 && 
                           (queryLower.includes('kumar') || queryLower.includes('singh') || 
                            queryLower.match(/^[A-Za-z]+ [A-Za-z]+$/)); // Likely a person's name
     
-    // For person queries, be more restrictive with semantic search
-    const shouldUseSemanticSearch = searchResults.length < (isPersonQuery ? 2 : 10);
+    // Only use true semantic search for object queries - person queries use celebrity matching
+    const shouldUseSemanticSearch = !isPersonQuery && searchResults.length < 10;
     
-    if (shouldUseSemanticSearch && queryEmbedding) {
-      console.log("🌟 Step 3: Smart semantic search");
-      console.log(`   📝 Person query detected: ${isPersonQuery}`);
+    if (shouldUseSemanticSearch) {
+      console.log("🌟 Step 3: TRUE SEMANTIC SEARCH - Visual AI Analysis");
+      console.log(`   🎯 Analyzing images visually for: "${queryLower}"`);
       
       const semanticMatches = [];
       
-      // Calculate semantic similarity for each image
+      // TRUE SEMANTIC ANALYSIS - No hardcoded label matching!
       for (const result of allResults) {
-        const labels = result.payload.labels || [];
+        // Skip celebrity images for object queries
         const celebrities = result.payload.celebrities || [];
-        const texts = result.payload.texts || [];
-        
-        // Skip images that already have celebrity matches for person queries
-        if (isPersonQuery && celebrities.length > 0) {
-          // Only include if the celebrity actually matches the query
-          const celebrityMatch = celebrities.some(celeb => {
-            const celebLower = celeb.toLowerCase();
-            return celebLower.includes(queryLower) || queryLower.includes(celebLower);
-          });
-          if (!celebrityMatch) {
-            console.log(`   ⏭️  Skipping non-matching celebrity image: ${celebrities.join(', ')}`);
-            continue;
-          }
+        if (celebrities.length > 0) {
+          console.log(`   ⏭️  Skipping celebrity image for object query: ${celebrities.join(', ')}`);
+          continue;
         }
         
-        // For object queries, do a quick pre-filter to avoid completely irrelevant images
-        if (!isPersonQuery) {
-          const hasRelevantContent = labels.some(label => {
-            const labelLower = label.toLowerCase();
-            // Check if any label has some relation to the query
-            return labelLower.includes(queryLower) || 
-                   queryLower.includes(labelLower) ||
-                   // For car/vehicle searches, check for vehicle-related terms
-                   (queryLower.match(/car|vehicle|tyre|tire|wheel|auto/) && 
-                    labelLower.match(/car|vehicle|auto|wheel|tire|tyre|transport|motor/));
-          });
+        // Get the actual image URL for visual analysis
+        const imageUrl = `https://samsung-memory-lens-38jd.onrender.com/api/image/${result.id}`;
+        
+        // TRUE SEMANTIC UNDERSTANDING using OpenAI Vision
+        const semanticAnalysis = await getImageSemanticDescription(imageUrl, queryLower);
+        
+        // Only include images with strong semantic relevance
+        if (semanticAnalysis.semantic_relevance > 0.7) {
+          result.score = semanticAnalysis.semantic_relevance;
+          result.matchType = 'true_semantic_ai';
+          result.semanticExplanation = semanticAnalysis.explanation;
+          result.keyConcepts = semanticAnalysis.key_concepts;
+          semanticMatches.push(result);
           
-          if (!hasRelevantContent && celebrities.length === 0 && texts.length === 0) {
-            console.log(`   ⏭️  Skipping image with no relevant content: ${labels.slice(0, 3).join(', ')}`);
-            continue;
-          }
+          console.log(`🎯 TRUE SEMANTIC MATCH (${semanticAnalysis.semantic_relevance.toFixed(3)}): ${semanticAnalysis.explanation}`);
+          console.log(`   🔑 Key concepts: ${semanticAnalysis.key_concepts.join(', ')}`);
+        } else {
+          console.log(`   🚫 Low semantic relevance (${semanticAnalysis.semantic_relevance.toFixed(3)}): ${semanticAnalysis.explanation}`);
         }
         
-        // Create rich description of the image
-        const imageDescription = createImageDescription(labels, celebrities, texts);
-        
-        // Get embedding for image description
-        const imageEmbedding = await getEmbedding(imageDescription);
-        
-        if (imageEmbedding) {
-          // Calculate semantic similarity
-          const similarity = cosineSimilarity(queryEmbedding, imageEmbedding);
-          
-          // MUCH higher thresholds to prevent false positives
-          // Person queries need exact matches, object queries need strong semantic similarity
-          const threshold = isPersonQuery ? 0.65 : 0.45;
-          
-          if (similarity > threshold) {
-            result.score = similarity;
-            result.matchType = 'semantic_ai';
-            result.imageDescription = imageDescription;
-            semanticMatches.push(result);
-            
-            console.log(`🧠 Strong semantic match (${similarity.toFixed(3)}): ${imageDescription.substring(0, 100)}...`);
-          } else {
-            console.log(`   🚫 Weak similarity (${similarity.toFixed(3)}) - threshold: ${threshold.toFixed(2)}: ${imageDescription.substring(0, 50)}...`);
-          }
+        // Rate limiting: don't analyze too many images at once (expensive)
+        if (semanticMatches.length >= 10) {
+          console.log("   ⚡ Reached semantic analysis limit - stopping");
+          break;
         }
-        
-        // Rate limiting: don't process too many at once
-        if (semanticMatches.length >= (isPersonQuery ? 5 : 15)) break;
       }
       
       // Add unique semantic matches
@@ -510,7 +535,7 @@ async function searchImagesByStatement(statement) {
         }
       });
       
-      console.log(`🤖 Found ${semanticMatches.length} smart semantic matches`);
+      console.log(`🤖 Found ${semanticMatches.length} TRUE semantic matches via visual AI`);
     }
     
     // Step 5: FALLBACK KEYWORD SEARCH - For when OpenAI is unavailable or no semantic matches
