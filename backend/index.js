@@ -40,6 +40,23 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Rate limiting for OpenAI API calls (GPT-4o has different limits than mini)
+let lastAPICall = 0;
+const API_CALL_DELAY = 15000; // 15 seconds between calls for GPT-4o
+
+async function rateLimitedDelay() {
+  const now = Date.now();
+  const timeSinceLastCall = now - lastAPICall;
+  
+  if (timeSinceLastCall < API_CALL_DELAY) {
+    const waitTime = API_CALL_DELAY - timeSinceLastCall;
+    console.log(`⏳ Rate limiting: waiting ${Math.round(waitTime/1000)}s before next API call`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+  
+  lastAPICall = Date.now();
+}
+
 // Session middleware
 app.use(
   session({
@@ -119,8 +136,11 @@ async function getImageSemanticDescription(imageUrl, query) {
   try {
     console.log(`🤖 Analyzing image semantically for query: "${query}"`);
     
+    // Rate limiting to prevent API limits
+    await rateLimitedDelay();
+    
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Vision model
+      model: "gpt-4o", // Full GPT-4o Vision model - much more powerful than mini
       messages: [
         {
           role: "user",
@@ -502,8 +522,17 @@ async function searchImagesByStatement(statement) {
       
       const semanticMatches = [];
       
-      // TRUE SEMANTIC ANALYSIS - No hardcoded label matching!
+      // TRUE SEMANTIC ANALYSIS - Limited to prevent rate limiting
+      let analyzedCount = 0;
+      const MAX_SEMANTIC_ANALYSIS = 5; // Increased limit for GPT-4o (more powerful and reliable)
+      
       for (const result of allResults) {
+        // Stop if we've analyzed enough images
+        if (analyzedCount >= MAX_SEMANTIC_ANALYSIS) {
+          console.log(`⚡ Reached semantic analysis limit (${MAX_SEMANTIC_ANALYSIS}) to prevent rate limiting`);
+          break;
+        }
+        
         // Skip celebrity images for object queries
         const celebrities = result.payload.celebrities || [];
         if (celebrities.length > 0) {
@@ -516,6 +545,7 @@ async function searchImagesByStatement(statement) {
         
         // TRUE SEMANTIC UNDERSTANDING using OpenAI Vision
         const semanticAnalysis = await getImageSemanticDescription(imageUrl, queryLower);
+        analyzedCount++;
         
         // Only include images with strong semantic relevance
         if (semanticAnalysis.semantic_relevance > 0.7) {
@@ -577,9 +607,12 @@ async function searchImagesByStatement(statement) {
       });
     }
     
-    // Step 6: TEXT SEARCH - For OCR text content
-    if (searchResults.length < 5) {
-      console.log("🌟 Step 5: Text content search");
+    // Step 6: TEXT SEARCH - Only for specific text-based queries (phone numbers, addresses, etc.)
+    // DISABLED for object queries to prevent irrelevant screenshot matches
+    const isTextSpecificQuery = /^(\+?\d{10,}|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\d+\s+[a-zA-Z\s]+\s+(street|road|avenue|blvd|lane))$/i.test(queryLower);
+    
+    if (searchResults.length < 3 && isTextSpecificQuery) {
+      console.log("🌟 Step 5: Text content search (specific text queries only)");
       
       const textMatches = allResults.filter(result => {
         const texts = result.payload.texts || [];
@@ -604,6 +637,8 @@ async function searchImagesByStatement(statement) {
           searchResults.push(match);
         }
       });
+    } else if (!isTextSpecificQuery) {
+      console.log("🚫 Text search disabled for object queries to prevent screenshot pollution");
     }
     
     // Sort by score (highest first) and limit results
