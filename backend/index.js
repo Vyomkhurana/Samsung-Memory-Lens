@@ -40,62 +40,50 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Rate limiting for OpenAI API calls (GPT-4o has different limits than mini)
-let lastAPICall = 0;
-const API_CALL_DELAY = 8000; // 8 seconds between calls - faster while staying within limits
+// Rate limiting REMOVED for instant results with paid API key
+// No delays - maximum speed semantic search!
 
-async function rateLimitedDelay() {
-  const now = Date.now();
-  const timeSinceLastCall = now - lastAPICall;
+// PARALLEL batch processing - MAXIMUM SPEED!
+async function batchAnalyzeImages(imageResults, query, maxAnalysis = 15) {
+  console.log(`🚀 PARALLEL ANALYSIS: Processing up to ${maxAnalysis} images simultaneously!`);
   
-  if (timeSinceLastCall < API_CALL_DELAY) {
-    const waitTime = API_CALL_DELAY - timeSinceLastCall;
-    console.log(`⏳ Rate limiting: waiting ${Math.round(waitTime/1000)}s before next API call`);
-    await new Promise(resolve => setTimeout(resolve, waitTime));
-  }
-  
-  lastAPICall = Date.now();
-}
-
-// Batch process multiple images with smart rate limiting
-async function batchAnalyzeImages(imageResults, query, maxAnalysis = 10) {
-  const results = [];
-  let analyzedCount = 0;
-  
-  for (const result of imageResults) {
-    if (analyzedCount >= maxAnalysis) {
-      console.log(`⚡ Reached semantic analysis limit (${maxAnalysis}) to prevent rate limiting`);
-      break;
-    }
-    
-    // Skip celebrity images for object queries
+  // Filter out celebrity images first
+  const nonCelebrityImages = imageResults.filter(result => {
     const celebrities = result.payload.celebrities || [];
     if (celebrities.length > 0) {
       console.log(`   ⏭️  Skipping celebrity image for object query: ${celebrities.join(', ')}`);
-      continue;
+      return false;
     }
-    
+    return true;
+  }).slice(0, maxAnalysis);
+  
+  // PARALLEL PROCESSING - Analyze all images simultaneously!
+  const analysisPromises = nonCelebrityImages.map(async (result) => {
     const imageUrl = `https://samsung-memory-lens-38jd.onrender.com/api/image/${result.id}`;
     const semanticAnalysis = await getImageSemanticDescription(imageUrl, query);
-    analyzedCount++;
     
     if (semanticAnalysis.semantic_relevance > 0.7) {
-      results.push({
+      console.log(`🎯 TRUE SEMANTIC MATCH (${semanticAnalysis.semantic_relevance.toFixed(3)}): ${semanticAnalysis.explanation}`);
+      console.log(`   🔑 Key concepts: ${semanticAnalysis.key_concepts.join(', ')}`);
+      
+      return {
         ...result,
         score: semanticAnalysis.semantic_relevance,
         matchType: 'true_semantic_ai',
         semanticExplanation: semanticAnalysis.explanation,
         keyConcepts: semanticAnalysis.key_concepts
-      });
-      
-      console.log(`🎯 TRUE SEMANTIC MATCH (${semanticAnalysis.semantic_relevance.toFixed(3)}): ${semanticAnalysis.explanation}`);
-      console.log(`   🔑 Key concepts: ${semanticAnalysis.key_concepts.join(', ')}`);
+      };
     } else {
       console.log(`   🚫 Low semantic relevance (${semanticAnalysis.semantic_relevance.toFixed(3)}): ${semanticAnalysis.explanation}`);
+      return null;
     }
-  }
+  });
   
-  return results;
+  // Wait for all analyses to complete in parallel
+  const analysisResults = await Promise.all(analysisPromises);
+  
+  // Filter out null results and return matches
+  return analysisResults.filter(result => result !== null);
 }
 
 // Session middleware
@@ -177,8 +165,7 @@ async function getImageSemanticDescription(imageUrl, query) {
   try {
     console.log(`🤖 Analyzing image semantically for query: "${query}"`);
     
-    // Rate limiting to prevent API limits
-    await rateLimitedDelay();
+    // NO RATE LIMITING - INSTANT ANALYSIS!
     
     const response = await openai.chat.completions.create({
       model: "gpt-4o", // Full GPT-4o Vision model - much more powerful than mini
@@ -561,8 +548,8 @@ async function searchImagesByStatement(statement) {
       console.log("🌟 Step 3: TRUE SEMANTIC SEARCH - Visual AI Analysis");
       console.log(`   🎯 Analyzing images visually for: "${queryLower}"`);
       
-      // TRUE SEMANTIC ANALYSIS - Analyze all non-celebrity images for complete results
-      const MAX_SEMANTIC_ANALYSIS = 10; // Increased to ensure we find all relevant images
+      // TRUE SEMANTIC ANALYSIS - MAXIMUM SPEED with parallel processing
+      const MAX_SEMANTIC_ANALYSIS = 15; // No rate limiting = analyze more images!
       
       // Sort images to prioritize likely matches first (based on labels)
       const sortedResults = allResults.slice().sort((a, b) => {
