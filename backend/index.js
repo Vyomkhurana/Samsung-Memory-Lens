@@ -210,7 +210,7 @@ function semanticSearchWithoutPython(queryText, imageDatabase) {
 function lightweightSemanticSearch(queryText, imageLabels) {
   // Enhanced semantic similarity mappings for more accurate matching
   const semanticGroups = {
-    vehicles: ['car', 'vehicle', 'auto', 'automobile', 'truck', 'bus', 'motorcycle', 'bike', 'transport', 'tyre', 'tire', 'wheel', 'engine', 'headlight', 'bumper', 'windshield', 'door', 'steering', 'brake', 'mirror', 'sedan', 'suv', 'van'],
+    vehicles: ['car', 'vehicle', 'auto', 'automobile', 'truck', 'bus', 'motorcycle', 'bike', 'transport', 'transportation', 'tyre', 'tire', 'wheel', 'engine', 'headlight', 'bumper', 'windshield', 'door', 'steering', 'brake', 'mirror', 'sedan', 'suv', 'van', 'road', 'street', 'driving', 'parking', 'traffic', 'highway', 'motor', 'automotive'],
     people: ['person', 'people', 'human', 'man', 'woman', 'child', 'face', 'portrait', 'individual'],
     celebrities: ['celebrity', 'celebrities', 'famous', 'star', 'actor', 'actress', 'singer', 'musician', 'performer'],
     animals: ['animal', 'cat', 'dog', 'pet', 'wildlife', 'bird', 'horse', 'cow', 'elephant', 'tiger', 'lion'],
