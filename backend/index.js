@@ -994,6 +994,24 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
         const filename = file.originalname || `image_${Date.now()}.jpg`;
         
         console.log(`🔄 Processing: ${filename}`);
+        
+        // Validate image format and size
+        if (!imageBytes || imageBytes.length === 0) {
+          console.warn(`⚠️ Invalid image data for ${filename}: Empty buffer`);
+          failed++;
+          continue;
+        }
+        
+        // Check image format by examining file header
+        const isJPEG = imageBytes[0] === 0xFF && imageBytes[1] === 0xD8;
+        const isPNG = imageBytes[0] === 0x89 && imageBytes[1] === 0x50 && imageBytes[2] === 0x4E && imageBytes[3] === 0x47;
+        
+        if (!isJPEG && !isPNG) {
+          console.warn(`⚠️ Unsupported image format for ${filename}: Not JPEG or PNG`);
+          // Try to process anyway in case it's a valid format with different headers
+        }
+        
+        console.log(`📊 Image info: ${filename} (${imageBytes.length} bytes, ${isJPEG ? 'JPEG' : isPNG ? 'PNG' : 'Unknown'})`);
 
         // 1. Detect Labels using Amazon Rekognition
         let labels = [];
@@ -1041,6 +1059,15 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
           embedding = buildEmbedding(semanticDescription, labels, celebrities, texts);
         }
         
+        // Validate embedding before storing
+        if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
+          console.error(`❌ Invalid embedding for ${filename}, skipping...`);
+          failed++;
+          continue;
+        }
+        
+        console.log(`🔢 Embedding dimensions: ${embedding.length} for ${filename}`);
+        
         console.log(`🏷️ Image features for ${filename}:`, {
           labels: labels.length,
           celebrities: celebrities.length,
@@ -1053,27 +1080,52 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
 
         // 7. Store in Qdrant Vector Database with enhanced metadata
         const pointId = uuidv4();
-        await qdrant.upsert(COLLECTION_NAME, {
-          points: [
-            {
-              id: pointId,
-              vector: embedding,
-              payload: {
-                filename,
-                labels,
-                celebrities,
-                texts,
-                semanticDescription, // Rich semantic description for better understanding
-                uploadTimestamp: new Date().toISOString(),
-                source: 'flutter_gallery',
-                path: file.path || `/gallery/${filename}`,
-                imageData: imageBase64, // Store base64 image data
-                imageUrl: `/api/image/${pointId}`, // URL to serve the image
-                mimeType: file.mimetype || 'image/jpeg'
+        
+        // Validate payload size (Qdrant has limits)
+        const payloadSize = JSON.stringify({
+          filename,
+          labels,
+          celebrities,
+          texts,
+          semanticDescription,
+          uploadTimestamp: new Date().toISOString(),
+          source: 'flutter_gallery',
+          path: file.path || `/gallery/${filename}`,
+          imageData: imageBase64.substring(0, 100) + '...', // Just for size estimation
+          imageUrl: `/api/image/${pointId}`,
+          mimeType: file.mimetype || 'image/jpeg'
+        }).length;
+        
+        console.log(`📦 Payload size: ${Math.round(payloadSize / 1024)}KB for ${filename}`);
+        
+        try {
+          await qdrant.upsert(COLLECTION_NAME, {
+            points: [
+              {
+                id: pointId,
+                vector: embedding,
+                payload: {
+                  filename,
+                  labels,
+                  celebrities,
+                  texts,
+                  semanticDescription, // Rich semantic description for better understanding
+                  uploadTimestamp: new Date().toISOString(),
+                  source: 'flutter_gallery',
+                  path: file.path || `/gallery/${filename}`,
+                  imageData: imageBase64, // Store base64 image data
+                  imageUrl: `/api/image/${pointId}`, // URL to serve the image
+                  mimeType: file.mimetype || 'image/jpeg'
+                },
               },
-            },
-          ],
-        });
+            ],
+          });
+          
+          console.log(`💾 Successfully stored in Qdrant: ${pointId}`);
+        } catch (qdrantError) {
+          console.error(`❌ Qdrant storage failed for ${filename}:`, qdrantError.message);
+          throw new Error(`Vector database storage failed: ${qdrantError.message}`);
+        }
 
         results.push({
           id: pointId,

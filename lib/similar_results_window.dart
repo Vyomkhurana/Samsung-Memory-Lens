@@ -22,7 +22,7 @@ class SimilarResultsWindow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '🔍 Similar Results',
+              ' Similar Results',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18,
