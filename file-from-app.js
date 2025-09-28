@@ -10,6 +10,7 @@ dotenv.config();
 
 const app = express();
 const upload = multer();
+app.use(express.json()); // Add this line at the top, after `const app = express();`
 
 AWS.config.update({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -62,13 +63,23 @@ async function buildEmbedding(text) {
   });
 }
 
-// --- Endpoint to receive and process a single image ---
-app.post("/analyze-image", upload.single("image"), async (req, res) => {
+
+app.use(express.json());
+
+app.post("/analyze-images", upload.array("images"), async (req, res) => {
   await ensureCollectionExists();
-  if (!req.file) return res.status(400).json({ error: "No image uploaded" });
+  if (!req.files || req.files.length === 0) return res.status(400).json({ error: "No images uploaded" });
+  const results = [];
+  for (const file of req.files) {
+    const result = await processImageBuffer(file.buffer);
+    results.push(result);
+  }
+  res.json(results);
 
-  const imageBytes = req.file.buffer;
+});
 
+// --- Helper to process a single image buffer ---
+async function processImageBuffer(imageBytes) {
   // 1. Labels
   let labels = [];
   try {
@@ -114,13 +125,13 @@ app.post("/analyze-image", upload.single("image"), async (req, res) => {
     ],
   });
 
-  res.json({
+  return {
     id: pointId,
     labels,
     celebrities,
     texts,
-  });
-});
+  };
+}
 
 // --- Search by user statement ---
 async function searchImagesByStatement(statement) {
@@ -133,19 +144,44 @@ async function searchImagesByStatement(statement) {
   });
 
   if (result.length && result[0].payload) {
-    return result[0].payload;
-  
+    return {
+      ...result[0].payload,
+      id: result[0].id // include the id for reference
+    };
+  }
   return null;
 }
 
-// --- Example usage for search ---
-async function main() {
-  // To test search, comment out the app.listen below and uncomment this:
-  // const matched = await searchImagesByStatement("he is the king of bollywood.");
-  // console.log("🎯 Best matched file:", matched);
-}
+// --- Endpoint to search and return matched image ---
+app.post("/search-images", async (req, res) => {
+  const { statement } = req.body;
+  if (!statement) return res.status(400).json({ error: "No statement provided" });
+
+  try {
+    const matched = await searchImagesByStatement(statement);
+    if (matched) {
+      res.json({ matched });
+    } else {
+      res.status(404).json({ error: "No match found" });
+    }
+  } catch (err) {
+    res.status(500).json({ error: "Search failed", details: err.toString() });
+  }
+});
+
+app.post("/search-images", async (req, res) => {
+  const { statement } = req.body;
+  if (!statement) return res.status(400).json({ error: "No statement provided" });
+
+  try {
+    const result = await searchImagesByStatement(statement);
+    res.json({ result });
+  } catch (err) {
+    res.status(500).json({ error: "Search failed", details: err.toString() });
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
-});
+})

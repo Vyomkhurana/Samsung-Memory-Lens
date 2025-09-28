@@ -42,7 +42,7 @@ const qdrant = new QdrantClient({
   url: process.env.QDRANTDB_ENDPOINT,
   apiKey: process.env.QDRANTDB_API_KEY,
 });
-const COLLECTION_NAME = "images";
+const COLLECTION_NAME = "images_384"; // Use different collection name to avoid dimension conflict
 const VECTOR_SIZE = 384; 
 
 async function ensureCollectionExists() {
@@ -143,29 +143,38 @@ async function processAndStoreImageVectors(bucketName) {
   }
 }
 
-async function searchImagesByStatement(statement) {
+async function searchImagesByStatement(statement, topK = 5) {
   const statementEmbedding = await buildEmbedding(statement);
 
   const result = await qdrant.search(COLLECTION_NAME, {
     vector: statementEmbedding,
-    limit: 1,
+    limit: topK, // Return multiple results instead of just 1
     with_payload: true,
   });
 
-  if (result.length && result[0].payload?.fileName) {
-    return result[0].payload.fileName;
+  if (result.length > 0) {
+    // Return all relevant images with their scores
+    return result.map(item => ({
+      fileName: item.payload?.fileName,
+      url: item.payload?.url,
+      labels: item.payload?.labels,
+      celebrities: item.payload?.celebrities,
+      texts: item.payload?.texts,
+      score: item.score // Similarity score
+    }));
   }
-  return null;
+  return [];
 }
 
 async function main() {
  
-  // await processAndStoreImageVectors("samsungmemorylens");
+  await ensureCollectionExists();
+  await processAndStoreImageVectors("samsungmemorylens");
 
-  const matchedFile = await searchImagesByStatement(
-    "he is the king of bollywood. "
+  const matchedImages = await searchImagesByStatement(
+    "black metal body"
   );
-  console.log("🎯 Best matched file:", matchedFile);
+  console.log("🎯 All matched images:", matchedImages);
 }
 
 main().catch((err) => console.error("❌ Error:", err));
