@@ -7,7 +7,16 @@ import { QdrantClient } from "@qdrant/js-client-rest";
 import { v4 as uuidv4 } from "uuid";
 import AWS from "aws-sdk";
 import OpenAI from 'openai';
-import { PythonShell } from "python-shell";
+
+// Conditional import for Python shell (fallback only)
+let PythonShell = null;
+try {
+  const pythonShellModule = await import("python-shell");
+  PythonShell = pythonShellModule.PythonShell;
+  console.log("✅ Python shell available for fallback embeddings");
+} catch (err) {
+  console.log("⚠️ Python shell not available - using OpenAI embeddings only");
+}
 
 dotenv.config();
 
@@ -167,8 +176,12 @@ async function ensureCollectionExists() {
   return true;
 }
 
-// 🧠 SIMPLE & EFFECTIVE: Python-based SentenceTransformer embeddings
+// 🧠 SIMPLE & EFFECTIVE: Python-based SentenceTransformer embeddings (fallback)
 async function buildEmbedding(text) {
+  if (!PythonShell) {
+    throw new Error("Python shell not available - cannot generate fallback embeddings");
+  }
+  
   return new Promise((resolve, reject) => {
     let result = "";
 

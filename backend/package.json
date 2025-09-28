@@ -22,6 +22,7 @@
     "multer": "^2.0.2",
     "node-fetch": "^3.3.2",
     "openai": "^4.20.1",
+    "python-shell": "^5.0.0",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
