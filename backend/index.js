@@ -1086,46 +1086,58 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
           console.warn(`⚠️ Text detection failed for ${filename}:`, textError.message);
         }
 
-        // 4. Create rich semantic description with contextual expansion
+        // 4. Generate REAL semantic description using GPT-4 analysis
         const allFeatures = [...labels, ...celebrities, ...texts];
-        let semanticText = allFeatures.join(' ');
+        let semanticText = '';
         
-        // Add contextual descriptions based on detected labels
-        const labelContext = [];
-        
-        // Vehicle-related contextual expansion
-        if (labels.some(l => l.toLowerCase().includes('car') || 
-                             l.toLowerCase().includes('vehicle') || 
-                             l.toLowerCase().includes('automobile'))) {
-          labelContext.push('vehicle with metal body');
-          labelContext.push('automotive design');
-          labelContext.push('car exterior body');
-          labelContext.push('metallic surface');
-        }
-        
-        // Add colors if detected
-        const colors = ['black', 'white', 'red', 'blue', 'silver', 'gray', 'green'];
-        colors.forEach(color => {
-          if (labels.some(l => l.toLowerCase().includes(color))) {
-            labelContext.push(`${color} colored vehicle`);
+        if (allFeatures.length > 0) {
+          // Use GPT-4 to analyze Rekognition data and generate rich semantic description
+          try {
+            const analysisPrompt = `Based on these AWS Rekognition detection results for an image, generate a comprehensive semantic description for vector-based search. Include ALL possible components, materials, and related terms someone might search for:
+
+Labels detected: ${labels.join(', ') || 'none'}
+Celebrities detected: ${celebrities.join(', ') || 'none'}  
+Text detected: ${texts.join(', ') || 'none'}
+
+Generate a rich semantic description (2-3 sentences) that includes:
+1. ALL physical components (for cars: wheels, tires, doors, windows, body, engine, etc.)
+2. Materials and textures (metal, plastic, glass, rubber, fabric, etc.)  
+3. Visual characteristics (colors, shapes, surfaces)
+4. Context and usage scenarios
+5. Related concepts and synonyms (tyre=tire, automobile=vehicle=car)
+
+Be comprehensive - include component parts, materials, and alternative terms. For vehicles, always mention wheels/tires/tyres. For furniture, mention wood/metal/fabric. For electronics, mention screen/buttons/plastic.`;
+
+            const gptResponse = await openai.chat.completions.create({
+              model: "gpt-4",
+              messages: [
+                {
+                  role: "system", 
+                  content: "You are an expert at creating semantic descriptions for image search. Generate rich, searchable descriptions based on image analysis data."
+                },
+                {
+                  role: "user",
+                  content: analysisPrompt
+                }
+              ],
+              max_tokens: 200,
+              temperature: 0.3
+            });
+            
+            const gptDescription = gptResponse.choices[0].message.content.trim();
+            semanticText = `${allFeatures.join(' ')} ${gptDescription}`;
+            
+            console.log(`🧠 GPT-4 semantic description for ${filename}: ${gptDescription}`);
+            
+          } catch (gptError) {
+            console.warn(`⚠️ GPT-4 analysis failed for ${filename}, using basic features:`, gptError.message);
+            semanticText = allFeatures.join(' ');
           }
-        });
-        
-        // Add material descriptions
-        if (labels.some(l => l.toLowerCase().includes('car') || 
-                             l.toLowerCase().includes('vehicle'))) {
-          labelContext.push('metal construction');
-          labelContext.push('automotive materials');
+        } else {
+          semanticText = `image with unknown content ${filename}`;
         }
         
-        // Combine original features with contextual expansion
-        semanticText = [
-          ...allFeatures,
-          ...labelContext,
-          `image content: ${labels.slice(0, 5).join(', ')}`
-        ].join(' ');
-        
-        console.log(`🧠 Enhanced semantic text for ${filename}: ${semanticText.substring(0, 150)}...`);
+        console.log(`🔍 Final semantic text for ${filename}: ${semanticText.substring(0, 150)}...`);
         
         // 5. Generate high-quality OpenAI embedding
         let embedding = null;
