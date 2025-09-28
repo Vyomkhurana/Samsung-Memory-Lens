@@ -6,7 +6,6 @@ import 'voice_recording_service.dart';
 import 'directory_picker_service.dart';
 import 'real_backend_service.dart';
 import 'similar_results_window.dart';
-import 'similar_results_window.dart';
 
 void main() {
   runApp(const MainApp());
@@ -392,7 +391,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
           _errorMessage = 'Photo uploaded successfully';
         });
         
-        print('✅ Upload successful: Photo processed');
+        print('Upload successful: Photo processed');
       } else {
         setState(() {
           _errorMessage = '❌ Upload failed: ${uploadResult['error']}';
@@ -725,6 +724,129 @@ class _GalleryScreenState extends State<GalleryScreen> {
       default:
         return _isUsingCustomDirectory ? Icons.folder : Icons.photo_library;
     }
+  }
+
+  // Show upload options dialog
+  void _showUploadOptions() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: const Color(0xFF1976D2).withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1976D2).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.cloud_upload_outlined,
+                  color: Color(0xFF1976D2),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Upload Photos',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Choose how you want to upload photos to the backend for AI processing:',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Single Photo Upload
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _uploadSelectedPhotoToBackend();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1976D2),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.photo, size: 20),
+                  label: const Text(
+                    'Upload Single Photo',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Multiple Photos Upload
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _uploadMultiplePhotosToBackend();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00BCD4),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.photo_library, size: 20),
+                  label: const Text(
+                    'Upload Multiple Photos',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white.withOpacity(0.7),
+              ),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -1405,6 +1527,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
           
           const SizedBox(height: 12),
           
+          // Upload Photos Button
+          _buildUploadButton(),
+          
+          const SizedBox(height: 12),
+          
           // Professional voice status indicator
           if (_errorMessage.isNotEmpty) _buildVoiceStatusCard(),
         ],
@@ -1502,6 +1629,43 @@ class _GalleryScreenState extends State<GalleryScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Upload Photos Button
+  Widget _buildUploadButton() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 0),
+      child: ElevatedButton.icon(
+        onPressed: _showUploadOptions,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1976D2),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+          shadowColor: Colors.transparent,
+        ).copyWith(
+          backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
+            if (states.contains(MaterialState.pressed)) {
+              return const Color(0xFF1565C0);
+            }
+            return const Color(0xFF1976D2);
+          }),
+        ),
+        icon: const Icon(Icons.cloud_upload_outlined, size: 20),
+        label: const Text(
+          'Upload Photos to Backend',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
       ),
     );
   }

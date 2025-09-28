@@ -14,7 +14,7 @@ class RealBackendService {
     
     while (retryCount < maxRetries) {
       try {
-        print('📤 Starting upload of selected photo to backend... (Attempt ${retryCount + 1}/$maxRetries)');
+        print('Starting upload of selected photo to backend... (Attempt ${retryCount + 1}/$maxRetries)');
         
         var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/add-gallery-images'));
         
@@ -38,27 +38,25 @@ class RealBackendService {
         );
         
         request.files.add(multipartFile);
-        print('📸 Added selected photo to upload');
-        
-        print('🚀 Uploading photo to backend...');
-        
-        // Send the request with longer timeout for AWS Rekognition processing
+        print('Added selected photo to upload');
+
+        print('Uploading photo to backend...');        // Send the request with longer timeout for AWS Rekognition processing
         var streamedResponse = await request.send().timeout(Duration(seconds: 60));
         var response = await http.Response.fromStream(streamedResponse);
         
         if (response.statusCode == 200) {
           var data = json.decode(response.body);
-          print('✅ Upload successful: ${data['message']}');
+          print('Upload successful: ${data['message']}');
           return {
             'success': true,
             'data': data,
             'uploaded': 1,
           };
         } else {
-          print('❌ Upload failed: ${response.statusCode} - ${response.body}');
+          print('Upload failed: ${response.statusCode} - ${response.body}');
           if (retryCount < maxRetries - 1) {
             retryCount++;
-            print('🔄 Retrying in 2 seconds...');
+            print('Retrying in 2 seconds...');
             await Future.delayed(Duration(seconds: 2));
             continue;
           }
@@ -69,10 +67,10 @@ class RealBackendService {
           };
         }
       } catch (e) {
-        print('❌ Upload error: $e');
+        print('Upload error: $e');
         if (retryCount < maxRetries - 1) {
           retryCount++;
-          print('🔄 Retrying in 2 seconds...');
+          print('Retrying in 2 seconds...');
           await Future.delayed(Duration(seconds: 2));
           continue;
         }
@@ -94,7 +92,7 @@ class RealBackendService {
   /// Upload photos from gallery to backend for processing (with batching)
   static Future<Map<String, dynamic>> uploadGalleryPhotos(List<AssetEntity> assets) async {
     try {
-      print('📤 Starting upload of ${assets.length} photos to backend...');
+      print('Starting upload of ${assets.length} photos to backend...');
       
       // Process in smaller batches to avoid timeout/connection issues
       const int batchSize = 5; // Process 5 images at a time
@@ -105,7 +103,7 @@ class RealBackendService {
         int endIndex = (i + batchSize > assets.length) ? assets.length : i + batchSize;
         List<AssetEntity> batch = assets.sublist(i, endIndex);
         
-        print('📦 Processing batch ${(i ~/ batchSize) + 1} (${batch.length} photos)...');
+        print('Processing batch ${(i ~/ batchSize) + 1} (${batch.length} photos)...');
         
         var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/add-gallery-images'));
         
@@ -120,7 +118,7 @@ class RealBackendService {
               
               // Compress if image is too large (>2MB)
               if (fileBytes.length > 2 * 1024 * 1024) {
-                print('⚠️ Large image detected (${(fileBytes.length / 1024 / 1024).toStringAsFixed(1)}MB), may cause timeout');
+                print('WARNING: Large image detected (${(fileBytes.length / 1024 / 1024).toStringAsFixed(1)}MB), may cause timeout');
               }
               
               // Create multipart file
@@ -132,20 +130,20 @@ class RealBackendService {
               
               request.files.add(multipartFile);
               batchUploaded++;
-              print('📸 Added photo ${totalUploaded + batchUploaded}/${assets.length}');
+              print('Added photo ${totalUploaded + batchUploaded}/${assets.length}');
             }
           } catch (e) {
-            print('⚠️ Failed to process asset ${asset.id}: $e');
+            print('WARNING: Failed to process asset ${asset.id}: $e');
             totalFailed++;
           }
         }
         
         if (request.files.isEmpty) {
-          print('⚠️ No valid files in this batch, skipping...');
+          print('WARNING: No valid files in this batch, skipping...');
           continue;
         }
         
-        print('🚀 Uploading batch with ${request.files.length} photos...');
+        print('Uploading batch with ${request.files.length} photos...');
         
         try {
           // Send the request with extended timeout for multiple images
@@ -154,14 +152,14 @@ class RealBackendService {
       
           if (response.statusCode == 200) {
             var data = json.decode(response.body);
-            print('✅ Batch ${(i ~/ batchSize) + 1} upload successful: ${data['message']}');
+            print('Batch ${(i ~/ batchSize) + 1} upload successful: ${data['message']}');
             totalUploaded += batchUploaded;
           } else {
-            print('❌ Batch ${(i ~/ batchSize) + 1} upload failed: ${response.statusCode} - ${response.body}');
+            print('Batch ${(i ~/ batchSize) + 1} upload failed: ${response.statusCode} - ${response.body}');
             totalFailed += batchUploaded;
           }
         } catch (batchError) {
-          print('❌ Batch ${(i ~/ batchSize) + 1} error: $batchError');
+          print('Batch ${(i ~/ batchSize) + 1} error: $batchError');
           totalFailed += batchUploaded;
         }
         
@@ -181,7 +179,7 @@ class RealBackendService {
       };
       
     } catch (e) {
-      print('❌ Upload error: $e');
+      print('Upload error: $e');
       return {
         'success': false,
         'error': 'Upload error: $e',
@@ -193,7 +191,7 @@ class RealBackendService {
   /// Search for images using voice text
   static Future<Map<String, dynamic>> searchImages(String voiceText) async {
     try {
-      print('🔍 Searching for images with text: "$voiceText"');
+      print('Searching for images with text: "$voiceText"');
       
       var response = await http.post(
         Uri.parse('$baseUrl/search-images'),
@@ -207,20 +205,20 @@ class RealBackendService {
       
       if (response.statusCode == 200) {
         var data = json.decode(response.body);
-        print('✅ Search successful: Found ${data['count']} results');
+        print('Search successful: Found ${data['count']} results');
         return {
           'success': true,
           'data': data,
         };
       } else {
-        print('❌ Search failed: ${response.statusCode} - ${response.body}');
+        print('Search failed: ${response.statusCode} - ${response.body}');
         return {
           'success': false,
           'error': 'Search failed: ${response.statusCode}',
         };
       }
     } catch (e) {
-      print('❌ Search error: $e');
+      print('Search error: $e');
       return {
         'success': false,
         'error': 'Search error: $e',
@@ -236,7 +234,7 @@ class RealBackendService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('❌ Backend not reachable: $e');
+      print('Backend not reachable: $e');
       return false;
     }
   }
@@ -281,13 +279,13 @@ class RealBackendService {
         };
       }
       
-      print('📸 Found ${photos.length} photos, uploading to backend...');
+      print('Found ${photos.length} photos, uploading to backend...');
       
       // Upload photos
       return await uploadGalleryPhotos(photos);
       
     } catch (e) {
-      print('❌ Sample upload error: $e');
+      print('Sample upload error: $e');
       return {
         'success': false,
         'error': 'Sample upload error: $e',

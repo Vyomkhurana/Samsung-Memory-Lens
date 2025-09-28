@@ -10,7 +10,7 @@ class BackendApiService {
     required List<String> mediaFilePaths,
     String? customDirectory,
   }) async {
-    print('🚀 Sending recognized text to Samsung Memory Lens backend: $recognizedText');
+    print('Sending recognized text to Samsung Memory Lens backend: $recognizedText');
     
     Map<String, dynamic> recognitionData = {
       'recognized_text': recognizedText,
@@ -22,19 +22,19 @@ class BackendApiService {
 
     try {
       // Always use mock backend for testing
-      print('📱 Using mock backend for testing...');
+      print('Using mock backend for testing...');
       return await sendToMockBackend(recognitionData);
       
     } catch (e) {
-      print('❌ Error: $e');
+      print('Error: $e');
       return {'success': false, 'error': 'Connection failed'};
     }
   }
 
   /// SIMPLIFIED Mock backend - ALWAYS returns results
   static Future<Map<String, dynamic>> sendToMockBackend(Map<String, dynamic> data) async {
-    print('🧪 Mock Backend - Received data:');
-    print('📝 Text: ${data['recognized_text']}');
+    print('Mock Backend - Received data:');
+    print('Text: ${data['recognized_text']}');
     
     // ALWAYS return 3 results
     List<Map<String, dynamic>> mockResults = [
@@ -74,7 +74,7 @@ class BackendApiService {
       'timestamp': DateTime.now().toIso8601String(),
     };
     
-    print('🔄 SIMPLIFIED Mock Backend Response:');
+    print('SIMPLIFIED Mock Backend Response:');
     print('  success: ${response['success']}');
     print('  count: ${response['count']}');  
     print('  showSimilarResults: ${response['showSimilarResults']}');

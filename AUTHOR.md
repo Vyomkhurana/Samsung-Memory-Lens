@@ -7,7 +7,7 @@
 
 ## About This Project
 
-This is a comprehensive Flutter mobile application with voice-driven image search capabilities, developed entirely by Vyom Khurana.
+This is a comprehensive Flutter mobile application with voice-driven image search capabilities, developed by Vyom Khurana.
 
 ## Project Ownership
 

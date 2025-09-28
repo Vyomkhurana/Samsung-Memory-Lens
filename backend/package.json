@@ -6,23 +6,16 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "build": "echo 'No dependencies needed - using pure Python standard library'",
-    "test": "node test-server.js",
-    "dev": "nodemon index.js",
-    "test-dev": "nodemon test-server.js"
+    "dev": "nodemon index.js"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.15.1",
     "aws-sdk": "^2.1692.0",
-    "cors": "^2.8.5",
     "dotenv": "^17.2.1",
-    "ejs": "^3.1.10",
     "express": "^5.1.0",
     "express-session": "^1.18.2",
     "multer": "^2.0.2",
-    "node-fetch": "^3.3.2",
     "openai": "^4.20.1",
-    "python-shell": "^5.0.0",
     "uuid": "^10.0.0"
   },
   "devDependencies": {

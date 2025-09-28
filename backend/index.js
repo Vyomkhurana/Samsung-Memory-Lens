@@ -65,8 +65,7 @@ async function ensureCollectionExists() {
   }
 }
 
-// Build embedding using Python SentenceTransformer
-// Initialize OpenAI
+// Initialize OpenAI for embeddings
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -290,12 +289,12 @@ async function processImageBuffer(imageBytes, filename) {
 
 // Pure semantic search with minimal query processing
 async function searchImagesByStatement(statement, topK = 10) {
-  console.log(`🔍 Semantic search for: "${statement}"`);
+  console.log(`Semantic search for: "${statement}"`);
   
   // Minimal query processing - let embeddings handle semantic understanding
   const enhancedQuery = enhanceSearchQuery(statement);
-  console.log(`✨ Processed query: "${enhancedQuery}"`);
-  console.log(`🧠 Relying on OpenAI embeddings for conceptual matching...`);
+  console.log(`Processed query: "${enhancedQuery}"`);
+  console.log(`Relying on OpenAI embeddings for conceptual matching...`);
   
   const statementEmbedding = await buildEmbedding(enhancedQuery);
 
@@ -365,12 +364,12 @@ app.post("/add-gallery-images", upload.array("images", 10), async (req, res) => 
       return res.status(400).json({ error: "No images uploaded" });
     }
 
-    console.log(`📦 Processing batch of ${req.files.length} images from Flutter gallery...`);
+    console.log(`Processing batch of ${req.files.length} images from Flutter gallery...`);
     
     // Log file sizes for debugging
     req.files.forEach((file, index) => {
       const sizeMB = (file.size / 1024 / 1024).toFixed(2);
-      console.log(`  📸 Image ${index + 1}: ${file.originalname} (${sizeMB}MB)`);
+      console.log(`  Image ${index + 1}: ${file.originalname} (${sizeMB}MB)`);
     });
     
     const results = [];
@@ -379,13 +378,13 @@ app.post("/add-gallery-images", upload.array("images", 10), async (req, res) => 
 
     for (const file of req.files) {
       try {
-        console.log(`🔄 Processing ${file.originalname}...`);
+        console.log(`Processing ${file.originalname}...`);
         const result = await processImageBuffer(file.buffer, file.originalname);
         results.push(result);
         successCount++;
-        console.log(`✅ Successfully processed ${file.originalname}`);
+        console.log(`Successfully processed ${file.originalname}`);
       } catch (error) {
-        console.error(`❌ Failed to process ${file.originalname}:`, error.message);
+        console.error(`Failed to process ${file.originalname}:`, error.message);
         failCount++;
       }
     }
