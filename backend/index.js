@@ -12,7 +12,7 @@ const app = express();
 const upload = multer();
 app.use(express.json());
 
-// 🔧 AWS Configuration
+// AWS Configuration
 AWS.config.update({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -20,12 +20,12 @@ AWS.config.update({
 });
 const rekognition = new AWS.Rekognition();
 
-// 🔧 OpenAI Configuration
+// OpenAI Configuration
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// 🔧 Qdrant Configuration
+// Qdrant Configuration
 const qdrant = new QdrantClient({ 
   url: process.env.QDRANTDB_ENDPOINT, 
   apiKey: process.env.QDRANTDB_API_KEY 
@@ -33,13 +33,13 @@ const qdrant = new QdrantClient({
 const COLLECTION_NAME = "samsung_memory_lens";
 const VECTOR_SIZE = 1536; // OpenAI text-embedding-3-small
 
-// 🏗️ Initialize Vector Database
+// Initialize Vector Database
 async function ensureCollectionExists() {
   try {
     await qdrant.getCollection(COLLECTION_NAME);
-    console.log("✅ Collection exists.");
+    console.log("Collection exists.");
   } catch (err) {
-    console.log("⚠️ Collection does not exist. Creating...");
+    console.log("Collection does not exist. Creating...");
     try {
       await qdrant.createCollection(COLLECTION_NAME, {
         vectors: {
@@ -47,15 +47,15 @@ async function ensureCollectionExists() {
           distance: "Cosine",
         },
       });
-      console.log("✅ Collection created.");
+      console.log("Collection created.");
     } catch (createErr) {
-      console.error("❌ Failed to create collection:", createErr);
+      console.error("Failed to create collection:", createErr);
       throw createErr;
     }
   }
 }
 
-// 🧠 Generate OpenAI Embedding
+// Generate OpenAI Embedding
 async function getEmbedding(text) {
   try {
     const response = await openai.embeddings.create({
@@ -64,14 +64,14 @@ async function getEmbedding(text) {
     });
     return response.data[0].embedding;
   } catch (error) {
-    console.error("❌ OpenAI embedding failed:", error);
+    console.error("OpenAI embedding failed:", error);
     return null;
   }
 }
 
-// 📸 Process Single Image with AWS Rekognition
+// Process Single Image with AWS Rekognition
 async function processImageBuffer(imageBytes, filename) {
-  console.log(`🔄 Processing: ${filename}`);
+  console.log(`Processing: ${filename}`);
 
   // 1. AWS Rekognition - Extract Labels
   let labels = [];
@@ -85,7 +85,7 @@ async function processImageBuffer(imageBytes, filename) {
       .promise();
     labels = labelData.Labels.map((l) => l.Name.toLowerCase());
   } catch (error) {
-    console.warn(`⚠️ Label detection failed for ${filename}:`, error.message);
+    console.warn(`Label detection failed for ${filename}:`, error.message);
   }
 
   // 2. AWS Rekognition - Extract Celebrities
@@ -96,7 +96,7 @@ async function processImageBuffer(imageBytes, filename) {
       .promise();
     celebrities = celebData.CelebrityFaces.map((c) => c.Name.toLowerCase());
   } catch (error) {
-    console.warn(`⚠️ Celebrity detection failed for ${filename}:`, error.message);
+    console.warn(`Celebrity detection failed for ${filename}:`, error.message);
   }
 
   // 3. AWS Rekognition - Extract Text
@@ -105,15 +105,15 @@ async function processImageBuffer(imageBytes, filename) {
     const textData = await rekognition.detectText({ Image: { Bytes: imageBytes } }).promise();
     texts = textData.TextDetections.map((t) => t.DetectedText.toLowerCase());
   } catch (error) {
-    console.warn(`⚠️ Text detection failed for ${filename}:`, error.message);
+    console.warn(`Text detection failed for ${filename}:`, error.message);
   }
 
   // 4. Create Semantic Description
   const allFeatures = [...labels, ...celebrities, ...texts];
   const semanticText = allFeatures.join(" ");
   
-  console.log(`🏷️ Features for ${filename}: ${allFeatures.length} total`);
-  console.log(`📝 Semantic text: ${semanticText}`);
+  console.log(`Features for ${filename}: ${allFeatures.length} total`);
+  console.log(`Semantic text: ${semanticText}`);
 
   // 5. Generate OpenAI Embedding
   const embedding = await getEmbedding(semanticText);
@@ -139,7 +139,7 @@ async function processImageBuffer(imageBytes, filename) {
     ],
   });
 
-  console.log(`✅ ${filename} → Vector DB stored with ID: ${pointId}`);
+  console.log(`${filename} stored in Vector DB with ID: ${pointId}`);
 
   return {
     id: pointId,
@@ -150,45 +150,59 @@ async function processImageBuffer(imageBytes, filename) {
   };
 }
 
-// 🔍 Semantic Search Function
+// Semantic Search Function
 async function searchImagesByStatement(statement, topK = 10) {
-  console.log(`🔍 Searching for: "${statement}"`);
+  console.log(`Searching for: "${statement}"`);
 
   // Generate embedding for search query
   const statementEmbedding = await getEmbedding(statement);
   if (!statementEmbedding) {
-    console.log("❌ Failed to generate search embedding");
+    console.log("Failed to generate search embedding");
     return [];
   }
 
-  // Search in vector database
+  // Search in vector database with higher limit to filter later
   const result = await qdrant.search(COLLECTION_NAME, {
     vector: statementEmbedding,
-    limit: topK,
+    limit: topK * 2, // Get more results to filter
     with_payload: true,
   });
 
   if (result.length > 0) {
-    console.log(`🎯 Found ${result.length} matches`);
+    console.log(`Found ${result.length} potential matches`);
     
-    return result.map((item, index) => ({
-      id: item.id,
-      filename: item.payload?.filename || `image_${item.id}`,
-      labels: item.payload?.labels || [],
-      celebrities: item.payload?.celebrities || [],
-      texts: item.payload?.texts || [],
-      uploadTimestamp: item.payload?.uploadTimestamp || new Date().toISOString(),
-      score: item.score,
-      rank: index + 1,
-      imageUrl: `https://samsung-memory-lens-38jd.onrender.com/api/image/${item.id}`,
-    }));
+    // Filter by confidence threshold - only return high confidence results
+    const CONFIDENCE_THRESHOLD = 0.4; // Only show results above 40% similarity
+    const highConfidenceResults = result.filter(item => item.score >= CONFIDENCE_THRESHOLD);
+    
+    console.log(`After confidence filtering (${CONFIDENCE_THRESHOLD}): ${highConfidenceResults.length} high-quality matches`);
+    
+    if (highConfidenceResults.length === 0) {
+      console.log("No high-confidence matches found");
+      return [];
+    }
+    
+    // Return only the top results, sorted by confidence
+    return highConfidenceResults
+      .slice(0, topK)
+      .map((item, index) => ({
+        id: item.id,
+        filename: item.payload?.filename || `image_${item.id}`,
+        labels: item.payload?.labels || [],
+        celebrities: item.payload?.celebrities || [],
+        texts: item.payload?.texts || [],
+        uploadTimestamp: item.payload?.uploadTimestamp || new Date().toISOString(),
+        score: item.score,
+        rank: index + 1,
+        imageUrl: `https://samsung-memory-lens-38jd.onrender.com/api/image/${item.id}`,
+      }));
   }
 
-  console.log("❌ No matches found");
+  console.log("No matches found");
   return [];
 }
 
-// 📤 Upload Images Endpoint
+// Upload Images Endpoint
 app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => {
   try {
     await ensureCollectionExists();
@@ -197,7 +211,7 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
       return res.status(400).json({ error: "No images uploaded" });
     }
 
-    console.log(`📸 Processing ${req.files.length} images from Flutter gallery...`);
+    console.log(`Processing ${req.files.length} images from Flutter gallery...`);
     
     const results = [];
     let successCount = 0;
@@ -209,12 +223,12 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
         results.push(result);
         successCount++;
       } catch (error) {
-        console.error(`❌ Failed to process ${file.originalname}:`, error);
+        console.error(`Failed to process ${file.originalname}:`, error);
         failCount++;
       }
     }
 
-    console.log(`🎉 Gallery upload complete: ${successCount}/${req.files.length} images added to vector database`);
+    console.log(`Gallery upload complete: ${successCount}/${req.files.length} images added to vector database`);
 
     res.json({
       success: true,
@@ -225,7 +239,7 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
     });
 
   } catch (error) {
-    console.error("❌ Gallery upload failed:", error);
+    console.error("Gallery upload failed:", error);
     res.status(500).json({
       success: false,
       error: "Gallery upload failed",
@@ -234,7 +248,7 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
   }
 });
 
-// 🔍 Search Images Endpoint
+// Search Images Endpoint
 app.post("/search-images", async (req, res) => {
   try {
     const { text, timestamp, source } = req.body;
@@ -246,7 +260,7 @@ app.post("/search-images", async (req, res) => {
       });
     }
 
-    console.log(`🔍 Searching for: "${text}" from ${source || 'unknown'}`);
+    console.log(`Searching for: "${text}" from ${source || 'unknown'}`);
 
     const matchedImages = await searchImagesByStatement(text);
 
@@ -260,7 +274,7 @@ app.post("/search-images", async (req, res) => {
         timestamp: new Date().toISOString()
       });
       
-      console.log(`✅ Found ${matchedImages.length} matching images for: "${text}"`);
+      console.log(`Found ${matchedImages.length} matching images for: "${text}"`);
     } else {
       res.json({
         success: true,
@@ -271,11 +285,11 @@ app.post("/search-images", async (req, res) => {
         timestamp: new Date().toISOString()
       });
       
-      console.log(`❌ No matches found for: "${text}"`);
+      console.log(`No matches found for: "${text}"`);
     }
 
   } catch (error) {
-    console.error("❌ Search failed:", error);
+    console.error("Search failed:", error);
     res.status(500).json({
       success: false,
       error: "Search failed",
@@ -284,7 +298,7 @@ app.post("/search-images", async (req, res) => {
   }
 });
 
-// 🖼️ Serve Images by ID
+// Serve Images by ID
 app.get("/api/image/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -305,12 +319,12 @@ app.get("/api/image/:id", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Image retrieval failed:", error);
+    console.error("Image retrieval failed:", error);
     res.status(500).json({ error: "Image retrieval failed" });
   }
 });
 
-// ❤️ Health Check
+// Health Check
 app.get("/health", (req, res) => {
   res.json({ 
     status: "healthy", 
@@ -319,17 +333,17 @@ app.get("/health", (req, res) => {
   });
 });
 
-// 🚀 Start Server
+// Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", async () => {
-  console.log(`🚀 Samsung Memory Lens Backend running at http://localhost:${PORT}`);
-  console.log(`📋 Health check: http://localhost:${PORT}/health`);
-  console.log(`🌐 Accessible from all network interfaces on port ${PORT}`);
+  console.log(`Samsung Memory Lens Backend running at http://localhost:${PORT}`);
+  console.log(`Health check: http://localhost:${PORT}/health`);
+  console.log(`Accessible from all network interfaces on port ${PORT}`);
   
   try {
     await ensureCollectionExists();
-    console.log("🎯 Backend initialization complete");
+    console.log("Backend initialization complete");
   } catch (error) {
-    console.error("❌ Backend initialization failed:", error);
+    console.error("Backend initialization failed:", error);
   }
 });
