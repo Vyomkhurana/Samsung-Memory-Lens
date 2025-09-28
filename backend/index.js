@@ -105,53 +105,69 @@ async function buildEmbedding(text) {
 
 // Enhance search query for voice commands
 function enhanceSearchQuery(query) {
+  // PURE SEMANTIC SEARCH - Let OpenAI embeddings handle conceptual understanding
   let enhanced = query.toLowerCase().trim();
   
-  // Handle common voice search patterns
-  if (enhanced.includes('car') || enhanced.includes('cars')) {
-    enhanced = 'car automobile vehicle sedan transportation wheels tires motor driving';
-  } else if (enhanced.includes('house') || enhanced.includes('home')) {
-    enhanced = 'house home building residence dwelling property architecture';
-  } else if (enhanced.includes('metal body')) {
-    enhanced = 'metal metallic chrome steel aluminum shiny surface car automobile vehicle';
-  } else if (enhanced.includes('celebrity') || enhanced.includes('celebrities')) {
-    enhanced = 'celebrity actor actress star famous person bollywood hollywood film movie';
-  } else if (enhanced.includes('person') || enhanced.includes('people')) {
-    enhanced = 'person human individual people face portrait man woman';
-  }
+  // Only remove filler words that add no semantic value
+  const fillerWords = ['show', 'me', 'find', 'search', 'for', 'the', 'a', 'an', 'of', 'with', 'my', 'some'];
+  const words = enhanced.split(' ').filter(word => !fillerWords.includes(word));
   
-  return enhanced;
+  // Keep the core semantic meaning intact
+  return words.join(' ') || query; // Fallback if all words filtered
 }
 
-// Enhance text for better voice search matching
+// Rich semantic text enhancement for deeper conceptual understanding
 function enhanceTextForVoiceSearch(text) {
-  // Add synonyms and related terms for common voice search queries
   let enhanced = text.toLowerCase();
   
-  // Car-related enhancements
-  if (enhanced.includes('car') || enhanced.includes('sedan') || enhanced.includes('vehicle')) {
-    enhanced += ' automobile motor vehicle transportation wheels tires driving road';
-  }
+  // Comprehensive semantic concept mapping for true semantic search
+  const conceptualMappings = {
+    // Transportation & Mobility
+    'car': 'transportation vehicle mobility automotive driving movement travel road traffic',
+    'vehicle': 'transportation automotive mobility movement driving travel',
+    'sedan': 'transportation car vehicle automotive mobility passenger',
+    
+    // Architecture & Living Spaces
+    'building': 'architecture structure construction property real estate space urban infrastructure',
+    'house': 'architecture home residence dwelling property living space domestic family shelter',
+    'home': 'residence dwelling living space domestic comfort family personal private',
+    
+    // Human Identity & Social
+    'person': 'human individual people portrait face identity social being life',
+    'man': 'human male person individual identity masculine adult people',
+    'woman': 'human female person individual identity feminine adult people',
+    
+    // Entertainment & Culture
+    'celebrity': 'entertainment famous star performer public figure media culture icon',
+    'actor': 'entertainment celebrity performer film movie cinema drama theater art',
+    'movie': 'entertainment film cinema bollywood hollywood media story narrative culture',
+    
+    // Technology & Digital
+    'phone': 'technology mobile device communication digital electronics smartphone connectivity',
+    'computer': 'technology device electronics digital computing information processing machine',
+    
+    // Food & Wellness
+    'food': 'nutrition meal eating cooking sustenance nourishment health wellness dietary',
+    'oats': 'nutrition health breakfast cereal grain wellness food dietary fiber healthy',
+    
+    // Information & Documentation
+    'document': 'paper text information official record data written communication formal',
+    'card': 'identification document official paper information record plastic rectangular',
+    
+    // Materials & Physical Properties
+    'metal': 'material metallic steel aluminum chrome surface industrial solid shiny reflective',
+    'glass': 'material transparent clear surface reflection fragile smooth optical',
+    
+    // Activities & Lifestyle
+    'sports': 'activity physical exercise game competition athletic fitness health movement',
+    'music': 'audio sound entertainment art performance cultural rhythm melody harmony'
+  };
   
-  // House-related enhancements
-  if (enhanced.includes('house') || enhanced.includes('building') || enhanced.includes('home')) {
-    enhanced += ' residence dwelling property architecture structure';
-  }
-  
-  // Person-related enhancements
-  if (enhanced.includes('person') || enhanced.includes('man') || enhanced.includes('woman')) {
-    enhanced += ' human individual people face portrait';
-  }
-  
-  // Celebrity-related enhancements
-  if (enhanced.includes('akshay') || enhanced.includes('kumar') || 
-      enhanced.includes('celebrity') || enhanced.includes('actor') || enhanced.includes('actress')) {
-    enhanced += ' celebrity star famous person bollywood hollywood film movie actor actress';
-  }
-  
-  // Metal-related enhancements for "metal body" searches
-  if (enhanced.includes('metal')) {
-    enhanced += ' metallic steel aluminum chrome shiny surface material';
+  // Apply rich semantic context
+  for (const [keyword, concepts] of Object.entries(conceptualMappings)) {
+    if (enhanced.includes(keyword)) {
+      enhanced += ' ' + concepts;
+    }
   }
   
   return enhanced;
@@ -272,13 +288,14 @@ async function processImageBuffer(imageBytes, filename) {
   };
 }
 
-// Search by voice statement with enhanced semantic matching
+// Pure semantic search with minimal query processing
 async function searchImagesByStatement(statement, topK = 10) {
-  console.log(`Voice search for: "${statement}"`);
+  console.log(`🔍 Semantic search for: "${statement}"`);
   
-  // Enhance the search query for better voice matching
+  // Minimal query processing - let embeddings handle semantic understanding
   const enhancedQuery = enhanceSearchQuery(statement);
-  console.log(`Enhanced search query: "${enhancedQuery}"`);
+  console.log(`✨ Processed query: "${enhancedQuery}"`);
+  console.log(`🧠 Relying on OpenAI embeddings for conceptual matching...`);
   
   const statementEmbedding = await buildEmbedding(enhancedQuery);
 
