@@ -171,15 +171,31 @@ async function searchImagesByStatement(statement, topK = 10) {
   if (result.length > 0) {
     console.log(`Found ${result.length} potential matches`);
     
+    // Log all scores for debugging
+    result.forEach((item, index) => {
+      console.log(`  ${index + 1}. ${item.payload?.filename || 'unknown'} (score: ${item.score.toFixed(3)})`);
+    });
+    
     // Filter by confidence threshold - only return high confidence results
-    const CONFIDENCE_THRESHOLD = 0.4; // Only show results above 40% similarity
+    const CONFIDENCE_THRESHOLD = 0.15; // Only show results above 15% similarity
     const highConfidenceResults = result.filter(item => item.score >= CONFIDENCE_THRESHOLD);
     
     console.log(`After confidence filtering (${CONFIDENCE_THRESHOLD}): ${highConfidenceResults.length} high-quality matches`);
     
     if (highConfidenceResults.length === 0) {
-      console.log("No high-confidence matches found");
-      return [];
+      console.log("No high-confidence matches found - returning all results for debugging");
+      // Return all results for debugging if no high-confidence matches
+      return result.slice(0, topK).map((item, index) => ({
+        id: item.id,
+        filename: item.payload?.filename || `image_${item.id}`,
+        labels: item.payload?.labels || [],
+        celebrities: item.payload?.celebrities || [],
+        texts: item.payload?.texts || [],
+        uploadTimestamp: item.payload?.uploadTimestamp || new Date().toISOString(),
+        score: item.score,
+        rank: index + 1,
+        imageUrl: `https://samsung-memory-lens-38jd.onrender.com/api/image/${item.id}`,
+      }));
     }
     
     // Return only the top results, sorted by confidence
