@@ -515,29 +515,7 @@ function lightweightSemanticSearch(queryText, imageLabels) {
   return score;
 }
 
-// Simple embedding function for Qdrant storage (fallback when OpenAI is not used for storage)
-function buildEmbedding(text, labels = [], celebrities = [], texts = []) {
-  // Combine all available features for richer semantic representation
-  const allFeatures = [
-    ...text.toLowerCase().split(/\s+/),
-    ...labels.map(l => l.toLowerCase()),
-    ...celebrities.map(c => c.toLowerCase()),
-    ...texts.map(t => t.toLowerCase())
-  ];
-  
-  // Create a simple 384-dimensional vector for Qdrant compatibility
-  const vector = new Array(384).fill(0);
-  const combinedText = allFeatures.join(' ');
-  
-  // Simple hash-based embedding for storage purposes
-  for (let i = 0; i < combinedText.length && i < 384; i++) {
-    vector[i % 384] += combinedText.charCodeAt(i) / 255;
-  }
-  
-  // Normalize the vector
-  const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
-  return magnitude > 0 ? vector.map(val => val / magnitude) : vector;
-}
+
 
 // 🎯 SUPERIOR SEMANTIC SEARCH: OpenAI embeddings for best results
 async function searchImagesByStatement(statement, topK = 10) {
