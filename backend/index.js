@@ -4,13 +4,16 @@ import AWS from "aws-sdk";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
-import OpenAI from "openai";
+import { PythonShell } from "python-shell";
+import session from "express-session";
 
 dotenv.config();
 
 const app = express();
 const upload = multer();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static("public"));
 
 // AWS Configuration
 AWS.config.update({
@@ -20,18 +23,21 @@ AWS.config.update({
 });
 const rekognition = new AWS.Rekognition();
 
-// OpenAI Configuration
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+app.use(
+  session({
+    secret: "some secret",
+    resave: false,
+    saveUninitialized: false,
+  })
+);
 
 // Qdrant Configuration
 const qdrant = new QdrantClient({ 
   url: process.env.QDRANTDB_ENDPOINT, 
   apiKey: process.env.QDRANTDB_API_KEY 
 });
-const COLLECTION_NAME = "samsung_memory_lens";
-const VECTOR_SIZE = 1536; // OpenAI text-embedding-3-small
+const COLLECTION_NAME = "images_384";
+const VECTOR_SIZE = 384; // SentenceTransformer (all-MiniLM-L6-v2)
 
 // Initialize Vector Database
 async function ensureCollectionExists() {
@@ -40,36 +46,40 @@ async function ensureCollectionExists() {
     console.log("Collection exists.");
   } catch (err) {
     console.log("Collection does not exist. Creating...");
-    try {
-      await qdrant.createCollection(COLLECTION_NAME, {
-        vectors: {
-          size: VECTOR_SIZE,
-          distance: "Cosine",
-        },
-      });
-      console.log("Collection created.");
-    } catch (createErr) {
-      console.error("Failed to create collection:", createErr);
-      throw createErr;
-    }
-  }
-}
-
-// Generate OpenAI Embedding
-async function getEmbedding(text) {
-  try {
-    const response = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: text,
+    await qdrant.createCollection(COLLECTION_NAME, {
+      vectors: {
+        size: VECTOR_SIZE,
+        distance: "Cosine",
+      },
     });
-    return response.data[0].embedding;
-  } catch (error) {
-    console.error("OpenAI embedding failed:", error);
-    return null;
+    console.log("Collection created.");
   }
 }
 
-// Process Single Image with AWS Rekognition
+// Build embedding using Python SentenceTransformer
+async function buildEmbedding(text) {
+  return new Promise((resolve, reject) => {
+    let result = "";
+
+    const pyshell = new PythonShell("embeddings.py", {
+      mode: "text",
+      pythonOptions: ["-u"],
+    });
+
+    pyshell.send(text);
+
+    pyshell.on("message", (msg) => {
+      result += msg;
+    });
+
+    pyshell.end((err) => {
+      if (err) reject(err);
+      else resolve(JSON.parse(result));
+    });
+  });
+}
+
+// Process Single Image Buffer with AWS Rekognition
 async function processImageBuffer(imageBytes, filename) {
   console.log(`Processing: ${filename}`);
 
@@ -108,20 +118,11 @@ async function processImageBuffer(imageBytes, filename) {
     console.warn(`Text detection failed for ${filename}:`, error.message);
   }
 
-  // 4. Create Semantic Description
+  // 4. Build semantic embedding using Python
   const allFeatures = [...labels, ...celebrities, ...texts];
-  const semanticText = allFeatures.join(" ");
-  
-  console.log(`Features for ${filename}: ${allFeatures.length} total`);
-  console.log(`Semantic text: ${semanticText}`);
+  const embedding = await buildEmbedding(allFeatures.join(" "));
 
-  // 5. Generate OpenAI Embedding
-  const embedding = await getEmbedding(semanticText);
-  if (!embedding) {
-    throw new Error("Failed to generate embedding");
-  }
-
-  // 6. Store in Qdrant Vector Database
+  // 5. Store in Qdrant Vector Database
   const pointId = uuidv4();
   await qdrant.upsert(COLLECTION_NAME, {
     points: [
@@ -134,12 +135,13 @@ async function processImageBuffer(imageBytes, filename) {
           celebrities,
           texts,
           uploadTimestamp: new Date().toISOString(),
+          imageData: imageBytes.toString('base64'), // Store image data
         },
       },
     ],
   });
 
-  console.log(`${filename} stored in Vector DB with ID: ${pointId}`);
+  console.log(`Stored vector for ${filename} with ID: ${pointId}`);
 
   return {
     id: pointId,
@@ -150,70 +152,43 @@ async function processImageBuffer(imageBytes, filename) {
   };
 }
 
-// Semantic Search Function
-async function searchImagesByStatement(statement, topK = 10) {
+// Search by user statement using Python embeddings
+async function searchImagesByStatement(statement, topK = 5) {
   console.log(`Searching for: "${statement}"`);
+  
+  const statementEmbedding = await buildEmbedding(statement);
 
-  // Generate embedding for search query
-  const statementEmbedding = await getEmbedding(statement);
-  if (!statementEmbedding) {
-    console.log("Failed to generate search embedding");
-    return [];
-  }
-
-  // Search in vector database with higher limit to filter later
   const result = await qdrant.search(COLLECTION_NAME, {
     vector: statementEmbedding,
-    limit: topK * 2, // Get more results to filter
+    limit: topK,
     with_payload: true,
   });
 
   if (result.length > 0) {
-    console.log(`Found ${result.length} potential matches`);
+    console.log(`Found ${result.length} matches`);
     
     // Log all scores for debugging
     result.forEach((item, index) => {
       console.log(`  ${index + 1}. ${item.payload?.filename || 'unknown'} (score: ${item.score.toFixed(3)})`);
     });
-    
-    // Filter by confidence threshold - only return high confidence results
-    const CONFIDENCE_THRESHOLD = 0.15; // Only show results above 15% similarity
-    const highConfidenceResults = result.filter(item => item.score >= CONFIDENCE_THRESHOLD);
-    
-    console.log(`After confidence filtering (${CONFIDENCE_THRESHOLD}): ${highConfidenceResults.length} high-quality matches`);
-    
-    if (highConfidenceResults.length === 0) {
-      console.log("No high-confidence matches found - returning all results for debugging");
-      // Return all results for debugging if no high-confidence matches
-      return result.slice(0, topK).map((item, index) => ({
-        id: item.id,
-        filename: item.payload?.filename || `image_${item.id}`,
-        labels: item.payload?.labels || [],
-        celebrities: item.payload?.celebrities || [],
-        texts: item.payload?.texts || [],
-        uploadTimestamp: item.payload?.uploadTimestamp || new Date().toISOString(),
-        score: item.score,
-        rank: index + 1,
-        imageUrl: `https://samsung-memory-lens-38jd.onrender.com/api/image/${item.id}`,
-      }));
-    }
-    
-    // Return only the top results, sorted by confidence
-    return highConfidenceResults
-      .slice(0, topK)
-      .map((item, index) => ({
-        id: item.id,
-        filename: item.payload?.filename || `image_${item.id}`,
-        labels: item.payload?.labels || [],
-        celebrities: item.payload?.celebrities || [],
-        texts: item.payload?.texts || [],
-        uploadTimestamp: item.payload?.uploadTimestamp || new Date().toISOString(),
-        score: item.score,
-        rank: index + 1,
-        imageUrl: `https://samsung-memory-lens-38jd.onrender.com/api/image/${item.id}`,
-      }));
-  }
 
+    // Return all relevant images with their scores - Flutter compatible format
+    return result.map((item, index) => ({
+      id: item.id,
+      filename: item.payload?.filename || `image_${item.id}`,
+      labels: item.payload?.labels || [],
+      celebrities: item.payload?.celebrities || [],
+      texts: item.payload?.texts || [],
+      uploadTimestamp: item.payload?.uploadTimestamp || new Date().toISOString(),
+      source: 'vector_search',
+      path: item.payload?.imageUrl || `/api/image/${item.id}`,
+      imageUrl: `https://samsung-memory-lens-38jd.onrender.com/api/image/${item.id}`,
+      score: item.score,
+      rank: index + 1,
+      semanticReason: `Vector similarity match: ${(item.score * 100).toFixed(1)}%`
+    }));
+  }
+  
   console.log("No matches found");
   return [];
 }
@@ -326,13 +301,22 @@ app.get("/api/image/:id", async (req, res) => {
       return res.status(404).json({ error: "Image not found" });
     }
 
-    // For now, return a placeholder response
-    // In a real app, you'd store and serve the actual image files
-    res.json({
-      id,
-      filename: result[0].payload?.filename,
-      message: "Image endpoint - implement actual image serving based on your storage solution"
+    const imageData = result[0].payload?.imageData;
+    if (!imageData) {
+      return res.status(404).json({ error: "Image data not found" });
+    }
+
+    // Convert base64 back to buffer and serve as image
+    const imageBuffer = Buffer.from(imageData, 'base64');
+    
+    // Set appropriate headers
+    res.set({
+      'Content-Type': 'image/jpeg',
+      'Content-Length': imageBuffer.length,
+      'Cache-Control': 'public, max-age=86400' // Cache for 1 day
     });
+    
+    res.send(imageBuffer);
 
   } catch (error) {
     console.error("Image retrieval failed:", error);
