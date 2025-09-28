@@ -144,7 +144,7 @@ async function ensureCollectionExists() {
   return true;
 }
 
-// 🧠 TRUE SEMANTIC SEARCH using OpenAI Vision + Embeddings
+// 🧠 ENHANCED SEMANTIC SEARCH using OpenAI Embeddings + Rich Metadata
 async function getEmbedding(text) {
   try {
     const response = await openai.embeddings.create({
@@ -157,6 +157,74 @@ async function getEmbedding(text) {
   } catch (error) {
     console.error("❌ Error getting OpenAI embedding:", error);
     return null;
+  }
+}
+
+// 🔍 CREATE RICH SEMANTIC DESCRIPTION from Rekognition data
+function createSemanticDescription(labels, celebrities, texts) {
+  const semanticParts = [];
+  
+  // Add primary objects and scenes
+  if (labels && labels.length > 0) {
+    const objects = labels.slice(0, 10).join(', '); // Top 10 labels
+    semanticParts.push(`Objects and scenes: ${objects}`);
+    
+    // Add contextual relationships for better semantic understanding
+    const labelLower = labels.map(l => l.toLowerCase());
+    
+    // Car-related semantic expansion
+    if (labelLower.some(l => l.includes('car') || l.includes('vehicle') || l.includes('automobile'))) {
+      semanticParts.push('Vehicle components: wheels, tires, tyres, engine, doors, windows, headlights, steering wheel, dashboard');
+    }
+    
+    // Person-related semantic expansion  
+    if (labelLower.some(l => l.includes('person') || l.includes('people') || l.includes('human'))) {
+      semanticParts.push('Human features: face, body, clothing, expressions, gestures, activities');
+    }
+    
+    // Nature-related semantic expansion
+    if (labelLower.some(l => l.includes('nature') || l.includes('outdoor') || l.includes('landscape'))) {
+      semanticParts.push('Natural elements: trees, plants, sky, water, mountains, weather, seasons');
+    }
+    
+    // Building-related semantic expansion
+    if (labelLower.some(l => l.includes('building') || l.includes('house') || l.includes('architecture'))) {
+      semanticParts.push('Architectural elements: walls, windows, doors, roof, foundation, interior, exterior');
+    }
+  }
+  
+  // Add celebrity information
+  if (celebrities && celebrities.length > 0) {
+    semanticParts.push(`People: ${celebrities.join(', ')}`);
+  }
+  
+  // Add text content
+  if (texts && texts.length > 0) {
+    const textContent = texts.slice(0, 5).join(' '); // Top 5 text elements
+    semanticParts.push(`Text content: ${textContent}`);
+  }
+  
+  return semanticParts.join('. ');
+}
+
+// 🎯 VECTOR-BASED SEMANTIC SEARCH with enhanced matching
+async function searchWithVectorSimilarity(queryEmbedding, limit = 20) {
+  try {
+    const searchResult = await qdrant.search(COLLECTION_NAME, {
+      vector: queryEmbedding,
+      limit: limit,
+      with_payload: true,
+      score_threshold: 0.3, // Lower threshold for broader semantic matching
+    });
+    
+    return searchResult.map(result => ({
+      ...result,
+      matchType: 'vector_semantic',
+      score: result.score
+    }));
+  } catch (error) {
+    console.error("❌ Vector search error:", error);
+    return [];
   }
 }
 
@@ -406,7 +474,7 @@ function buildEmbedding(text, labels = [], celebrities = [], texts = []) {
 
 async function searchImagesByStatement(statement) {
   try {
-    console.log(`🔍 Comprehensive Search for: "${statement}"`);
+    console.log(`🔍 VECTOR-BASED SEMANTIC SEARCH for: "${statement}"`);
     
     // If Qdrant is not available, use lightweight semantic search
     if (!isQdrantAvailable) {
@@ -417,39 +485,215 @@ async function searchImagesByStatement(statement) {
     const queryLower = statement.toLowerCase();
     console.log(`📝 Query analysis: "${queryLower}"`);
     
-    // 🧠 REAL SEMANTIC SEARCH using OpenAI Embeddings
+    // 🧠 VECTOR SEMANTIC SEARCH using OpenAI Embeddings + Qdrant
     console.log("🤖 Getting OpenAI embedding for query...");
     const queryEmbedding = await getEmbedding(queryLower);
     
     if (!queryEmbedding) {
-      console.log("❌ Failed to get query embedding, falling back to keyword search");
-      // Will use the old keyword search as fallback
-    } else {
-      console.log("✅ OpenAI embedding obtained successfully");
+      console.log("❌ Failed to get query embedding, falling back to scroll search");
+      return await fallbackScrollSearch(queryLower);
     }
     
-    // Step 1: Get ALL images from database first (we need to search payloads directly)
-    let allResults = [];
-    try {
-      // Get a large batch of images to search through
-      allResults = await qdrant.scroll(COLLECTION_NAME, {
-        limit: 200, // Get more images to search through
-        with_payload: true,
-        with_vector: false // We don't need vectors for direct payload search
+    console.log("✅ OpenAI embedding obtained successfully");
+    
+    // 🎯 PRIMARY SEARCH: Vector similarity search
+    console.log("🔍 Step 1: Vector similarity search with semantic matching");
+    const vectorResults = await searchWithVectorSimilarity(queryEmbedding, 50);
+    
+    let searchResults = [];
+    
+    if (vectorResults.length > 0) {
+      console.log(`🎯 Found ${vectorResults.length} vector matches`);
+      
+      // Filter results by score and add semantic context
+      vectorResults.forEach(result => {
+        if (result.score > 0.4) { // Higher threshold for quality
+          result.semanticReason = `Vector similarity: ${(result.score * 100).toFixed(1)}%`;
+          searchResults.push(result);
+          console.log(`✅ Vector match: ${result.payload.filename} (${(result.score * 100).toFixed(1)}% similarity)`);
+        }
+      });
+    }
+    
+    // 🔍 BACKUP SEARCH: Celebrity name matching for person queries
+    if (searchResults.length < 5) {
+      console.log("🌟 Step 2: Celebrity name search backup");
+      const celebrityResults = await searchCelebrities(queryLower);
+      
+      celebrityResults.forEach(match => {
+        if (!searchResults.find(existing => existing.id === match.id)) {
+          searchResults.push(match);
+        }
+      });
+    }
+    
+    // 🔍 FALLBACK SEARCH: Keyword matching if vector search fails
+    if (searchResults.length < 3) {
+      console.log("🌟 Step 3: Keyword fallback search");
+      const keywordResults = await searchKeywords(queryLower);
+      
+      keywordResults.forEach(match => {
+        if (!searchResults.find(existing => existing.id === match.id)) {
+          searchResults.push(match);
+        }
+      });
+    }
+    
+    // Sort by score (highest first) and limit results
+    searchResults.sort((a, b) => (b.score || 0) - (a.score || 0));
+    searchResults = searchResults.slice(0, 10);
+    
+    console.log(`✅ VECTOR SEARCH complete: ${searchResults.length} matches found`);
+    searchResults.forEach((result, i) => {
+      console.log(`  ${i+1}. ${result.matchType || 'vector'}: ${result.payload.filename} (score: ${(result.score || 0).toFixed(3)})`);
+      if (result.semanticReason) {
+        console.log(`     ${result.semanticReason}`);
+      }
+    });
+    
+    return searchResults;
+    
+  } catch (error) {
+    console.error("❌ Error in vector search:", error);
+    return [];
+  }
+}
+
+// 🔍 Helper function for celebrity search
+async function searchCelebrities(queryLower) {
+  try {
+    const scrollResult = await qdrant.scroll(COLLECTION_NAME, {
+      limit: 100,
+      with_payload: true,
+      filter: {
+        must: [
+          {
+            key: "celebrities",
+            match: {
+              any: [queryLower]
+            }
+          }
+        ]
+      }
+    });
+    
+    return scrollResult.points.map(result => ({
+      ...result,
+      score: 0.95,
+      matchType: 'celebrity_name',
+      semanticReason: `Celebrity match: ${result.payload.celebrities.join(', ')}`
+    }));
+  } catch (error) {
+    console.log("⚠️ Celebrity search fallback");
+    return [];
+  }
+}
+
+// 🔍 Helper function for keyword search
+async function searchKeywords(queryLower) {
+  try {
+    const scrollResult = await qdrant.scroll(COLLECTION_NAME, {
+      limit: 100,
+      with_payload: true,
+    });
+    
+    const matches = [];
+    
+    scrollResult.points.forEach(result => {
+      const labels = result.payload.labels || [];
+      let score = 0;
+      
+      labels.forEach(label => {
+        if (label.toLowerCase().includes(queryLower) || queryLower.includes(label.toLowerCase())) {
+          score += 0.8;
+        }
       });
       
-      if (allResults.points && allResults.points.length > 0) {
-        allResults = allResults.points;
-        console.log(`📚 Retrieved ${allResults.length} images from database for direct search`);
-      } else {
-        console.log("⚠️ No images found in database");
-        return [];
+      if (score > 0) {
+        matches.push({
+          ...result,
+          score: Math.min(score, 0.9),
+          matchType: 'keyword',
+          semanticReason: `Keyword match in labels`
+        });
       }
-    } catch (error) {
-      console.error("❌ Error retrieving images from database:", error);
+    });
+    
+    return matches;
+  } catch (error) {
+    console.log("⚠️ Keyword search fallback");
+    return [];
+  }
+}
+
+// 🔍 Fallback scroll search when embeddings fail
+async function fallbackScrollSearch(queryLower) {
+  try {
+    const scrollResult = await qdrant.scroll(COLLECTION_NAME, {
+      limit: 200,
+      with_payload: true,
+    });
+    
+    const matches = [];
+    
+    scrollResult.points.forEach(result => {
+      const labels = result.payload.labels || [];
+      const celebrities = result.payload.celebrities || [];
+      
+      // Check labels
+      const labelMatch = labels.some(label => 
+        label.toLowerCase().includes(queryLower) || queryLower.includes(label.toLowerCase())
+      );
+      
+      // Check celebrities
+      const celebrityMatch = celebrities.some(celeb => 
+        celeb.toLowerCase().includes(queryLower)
+      );
+      
+      if (labelMatch) {
+        matches.push({
+          ...result,
+          score: 0.7,
+          matchType: 'label_fallback',
+          semanticReason: 'Label keyword match'
+        });
+      } else if (celebrityMatch) {
+        matches.push({
+          ...result,
+          score: 0.9,
+          matchType: 'celebrity_fallback',
+          semanticReason: 'Celebrity name match'
+        });
+      }
+    });
+    
+    return matches.slice(0, 10);
+  } catch (error) {
+    console.error("❌ Fallback search error:", error);
+    return [];
+  }
+}
+
+// 🔍 Main search function - ENHANCED for vector-based semantic search
+async function searchImagesByStatementEnhanced(statement) {
+  try {
+    console.log(`\n🔍 ENHANCED SEARCH for: "${statement}"`);
+    
+    // Get all results from database for fallback searches
+    const scrollResult = await qdrant.scroll(COLLECTION_NAME, {
+      limit: 1000,
+      with_payload: true,
+    });
+    
+    const allResults = scrollResult.points || [];
+    console.log(`📚 Database has ${allResults.length} images to search through`);
+    
+    if (allResults.length === 0) {
+      console.log("❌ No images found in database");
       return [];
     }
-
+    
+    const queryLower = statement.toLowerCase();
     let searchResults = [];
     
     // Step 2: DIRECT CELEBRITY NAME SEARCH - Most important and highest priority
@@ -782,13 +1026,20 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
           console.warn(`⚠️ Text detection failed for ${filename}:`, textError.message);
         }
 
-        // 4. Build enhanced semantic embedding using all features
-        const embedding = buildEmbedding(
-          `${labels.join(' ')} ${celebrities.join(' ')} ${texts.join(' ')}`.trim(),
-          labels,
-          celebrities,
-          texts
-        );
+        // 4. Create rich semantic description for better vector matching
+        const semanticDescription = createSemanticDescription(labels, celebrities, texts);
+        console.log(`🧠 Semantic description for ${filename}: ${semanticDescription.substring(0, 100)}...`);
+        
+        // 5. Generate OpenAI embedding from semantic description
+        let embedding = null;
+        try {
+          embedding = await getEmbedding(semanticDescription);
+          console.log(`✅ Generated semantic vector for ${filename}`);
+        } catch (embeddingError) {
+          console.warn(`⚠️ OpenAI embedding failed for ${filename}, using fallback:`, embeddingError.message);
+          // Fallback to simple embedding
+          embedding = buildEmbedding(semanticDescription, labels, celebrities, texts);
+        }
         
         console.log(`🏷️ Image features for ${filename}:`, {
           labels: labels.length,
@@ -796,11 +1047,11 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
           texts: texts.length
         });
 
-        // 5. Convert image to base64 for storage and serving
+        // 6. Convert image to base64 for storage and serving
         const imageBase64 = imageBytes.toString('base64');
         const imageDataUrl = `data:${file.mimetype || 'image/jpeg'};base64,${imageBase64}`;
 
-        // 6. Store in Qdrant Vector Database
+        // 7. Store in Qdrant Vector Database with enhanced metadata
         const pointId = uuidv4();
         await qdrant.upsert(COLLECTION_NAME, {
           points: [
@@ -812,6 +1063,7 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
                 labels,
                 celebrities,
                 texts,
+                semanticDescription, // Rich semantic description for better understanding
                 uploadTimestamp: new Date().toISOString(),
                 source: 'flutter_gallery',
                 path: file.path || `/gallery/${filename}`,
