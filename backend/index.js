@@ -1086,11 +1086,46 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
           console.warn(`⚠️ Text detection failed for ${filename}:`, textError.message);
         }
 
-        // 4. Create rich semantic description for better understanding
+        // 4. Create rich semantic description with contextual expansion
         const allFeatures = [...labels, ...celebrities, ...texts];
-        const semanticText = allFeatures.join(' ') + (allFeatures.length > 0 ? ' ' : '') + 
-                           `image content: ${labels.slice(0, 5).join(', ')}`;
-        console.log(`🧠 Semantic text for ${filename}: ${semanticText.substring(0, 100)}...`);
+        let semanticText = allFeatures.join(' ');
+        
+        // Add contextual descriptions based on detected labels
+        const labelContext = [];
+        
+        // Vehicle-related contextual expansion
+        if (labels.some(l => l.toLowerCase().includes('car') || 
+                             l.toLowerCase().includes('vehicle') || 
+                             l.toLowerCase().includes('automobile'))) {
+          labelContext.push('vehicle with metal body');
+          labelContext.push('automotive design');
+          labelContext.push('car exterior body');
+          labelContext.push('metallic surface');
+        }
+        
+        // Add colors if detected
+        const colors = ['black', 'white', 'red', 'blue', 'silver', 'gray', 'green'];
+        colors.forEach(color => {
+          if (labels.some(l => l.toLowerCase().includes(color))) {
+            labelContext.push(`${color} colored vehicle`);
+          }
+        });
+        
+        // Add material descriptions
+        if (labels.some(l => l.toLowerCase().includes('car') || 
+                             l.toLowerCase().includes('vehicle'))) {
+          labelContext.push('metal construction');
+          labelContext.push('automotive materials');
+        }
+        
+        // Combine original features with contextual expansion
+        semanticText = [
+          ...allFeatures,
+          ...labelContext,
+          `image content: ${labels.slice(0, 5).join(', ')}`
+        ].join(' ');
+        
+        console.log(`🧠 Enhanced semantic text for ${filename}: ${semanticText.substring(0, 150)}...`);
         
         // 5. Generate high-quality OpenAI embedding
         let embedding = null;
