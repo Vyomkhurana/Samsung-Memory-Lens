@@ -268,15 +268,17 @@ class _GalleryScreenState extends State<GalleryScreen> {
         _isListening = false;
         _isSpeaking = false;
         
-        // Better error messages for common issues
+        // Professional error messages without emojis
         if (e.toString().contains('error_network')) {
-          _errorMessage = '🌐 Network error: Please check your internet connection';
+          _errorMessage = 'Network connection issue. Please check your internet and try again.';
         } else if (e.toString().contains('error_no_match')) {
-          _errorMessage = '🎤 No speech detected. Please try speaking again.';
+          _errorMessage = 'No speech detected. Please speak louder and try again.';
         } else if (e.toString().contains('error_speech_timeout')) {
-          _errorMessage = '⏰ Speech timeout. Please try again.';
+          _errorMessage = 'Speech timeout. Please speak clearly and try again.';
+        } else if (e.toString().contains('permission')) {
+          _errorMessage = 'Microphone permission required. Please enable in settings.';
         } else {
-          _errorMessage = 'Voice recording error: $e';
+          _errorMessage = 'Voice recognition unavailable. Please try again later.';
         }
       });
       
@@ -309,21 +311,58 @@ class _GalleryScreenState extends State<GalleryScreen> {
         _isSpeaking = false;
         _soundLevel = 0.0;
       });
+      
+      // If no speech was detected, show helpful feedback
+      if (_recognizedText.isEmpty) {
+        setState(() {
+          _errorMessage = 'No speech detected. Please speak louder and try again.';
+        });
+        _clearErrorMessage();
+      }
     } catch (e) {
       setState(() {
         _isRecording = false;
         _isListening = false;
         _isSpeaking = false;
         _soundLevel = 0.0;
-        _errorMessage = 'Error stopping recording: $e';
+        _errorMessage = _getVoiceErrorMessage(e.toString());
       });
+      _clearErrorMessage();
     }
+  }
+
+  // Professional voice error message handler
+  String _getVoiceErrorMessage(String originalError) {
+    if (originalError.contains('network') || originalError.contains('internet')) {
+      return 'Network connection required. Please check your internet connection.';
+    } else if (originalError.contains('permission') || originalError.contains('denied')) {
+      return 'Microphone access required. Please enable microphone permissions.';
+    } else if (originalError.contains('no_match') || originalError.contains('timeout')) {
+      return 'No speech detected. Please speak clearly and try again.';
+    } else if (originalError.contains('audio') || originalError.contains('microphone')) {
+      return 'Microphone issue detected. Please check your device microphone.';
+    } else if (originalError.contains('service_not_available')) {
+      return 'Voice recognition service unavailable. Please try again later.';
+    } else {
+      return 'Voice recognition temporarily unavailable. Please try again.';
+    }
+  }
+
+  // Auto-clear error messages for better UX
+  void _clearErrorMessage() {
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) {
+        setState(() {
+          _errorMessage = '';
+        });
+      }
+    });
   }
 
   // Upload selected photo to backend
   Future<void> _uploadSelectedPhotoToBackend() async {
     setState(() {
-      _errorMessage = '📤 Selecting photo to upload...';
+      _errorMessage = 'Selecting photo to upload...';
     });
 
     try {
@@ -334,13 +373,13 @@ class _GalleryScreenState extends State<GalleryScreen> {
       
       if (selectedPhoto == null) {
         setState(() {
-          _errorMessage = '❌ No photo selected';
+          _errorMessage = 'No photo selected';
         });
         return;
       }
 
       setState(() {
-        _errorMessage = '📤 Uploading selected photo to backend...';
+        _errorMessage = 'Uploading selected photo to backend...';
       });
       
       // Now upload the selected photo (with built-in connectivity check)
@@ -350,7 +389,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
         var data = uploadResult['data'];
         
         setState(() {
-          _errorMessage = '✅ Successfully uploaded selected photo!';
+          _errorMessage = 'Photo uploaded successfully';
         });
         
         print('✅ Upload successful: Photo processed');
@@ -894,35 +933,37 @@ class _GalleryScreenState extends State<GalleryScreen> {
       ),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.topCenter,
-            radius: 1.5,
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1976D2), // Samsung blue at center
-              Color(0xFF0D47A1), // Darker blue
-              Color(0xFF000000), // Deep black at edges
+              Color(0xFF000814), // Professional dark navy
+              Color(0xFF001D3D), // Samsung-inspired deep blue
+              Color(0xFF000000), // Pure black
             ],
-            stops: [0.0, 0.3, 1.0],
+            stops: [0.0, 0.6, 1.0],
           ),
         ),
         child: Stack(
           children: [
-            // Main content
+            // Professional dashboard layout
             Column(
             children: [
               const SizedBox(height: 100), // Space for transparent app bar
-              // Source indicator
-              if (_hasPermission) _buildSourceIndicator(),
-              // Gallery content
-              Expanded(child: _buildBody()),
+              
+              // Professional Stats Dashboard
+              if (_hasPermission) _buildProfessionalDashboard(),
+              
+              // Gallery content with enhanced design
+              Expanded(child: _buildProfessionalGalleryGrid()),
+              
               // Bottom padding for floating mic button
               const SizedBox(height: 120),
             ],
           ),
           // Floating YouTube-style mic button
           if (_hasPermission) _buildFloatingMicButton(),
-          // Test button for backend (temporary)
-          if (_hasPermission) _buildTestButton(),
+
             // Voice recognition overlay
             if (_recognizedText.isNotEmpty) _buildVoiceOverlay(),
           ],
@@ -996,7 +1037,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
     
     return Positioned(
-      bottom: 40,
+      bottom: 100, // Increased to avoid navigation bar overlap
       left: 0,
       right: 0,
       child: Center(
@@ -1009,7 +1050,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
               if (_isListening) ...[
                 // Outer pulse circle - Samsung blue
                 AnimatedContainer(
-                  duration: Duration(milliseconds: _isSpeaking ? 300 : 800),
+                  duration: Duration(milliseconds: _isSpeaking ? 150 : 500),
+                  curve: Curves.easeInOut,
                   height: _isSpeaking ? 160 + (_soundLevel * 25) : 140,
                   width: _isSpeaking ? 160 + (_soundLevel * 25) : 140,
                   decoration: BoxDecoration(
@@ -1028,7 +1070,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 ),
                 // Middle pulse circle - Samsung cyan
                 AnimatedContainer(
-                  duration: Duration(milliseconds: _isSpeaking ? 200 : 600),
+                  duration: Duration(milliseconds: _isSpeaking ? 120 : 400),
+                  curve: Curves.easeInOut,
                   height: _isSpeaking ? 125 + (_soundLevel * 18) : 110,
                   width: _isSpeaking ? 125 + (_soundLevel * 18) : 110,
                   decoration: BoxDecoration(
@@ -1047,7 +1090,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 ),
                 // Inner pulse circle - Premium Samsung blue
                 AnimatedContainer(
-                  duration: Duration(milliseconds: _isSpeaking ? 100 : 400),
+                  duration: Duration(milliseconds: _isSpeaking ? 80 : 300),
+                  curve: Curves.easeInOut,
                   height: _isSpeaking ? 95 + (_soundLevel * 12) : 85,
                   width: _isSpeaking ? 95 + (_soundLevel * 12) : 85,
                   decoration: BoxDecoration(
@@ -1065,9 +1109,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   ),
                 ),
               ],
-              // Samsung premium main button with dynamic effects
+              // Samsung premium main button with smooth animations
               AnimatedContainer(
-                duration: Duration(milliseconds: _isSpeaking ? 120 : 180),
+                duration: Duration(milliseconds: _isSpeaking ? 80 : 150),
+                curve: Curves.easeInOut,
                 height: buttonSize,
                 width: buttonSize,
                 decoration: BoxDecoration(
@@ -1150,170 +1195,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     );
   }
 
-  // Test buttons for backend integration
-  Widget _buildTestButton() {
-    return Stack(
-      children: [
-        // Samsung-style Upload Multiple Photos Button
-        Positioned(
-          bottom: 160,
-          right: 20,
-          child: GestureDetector(
-            onTap: _uploadMultiplePhotosToBackend,
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF00BCD4),
-                    Color(0xFF0097A7),
-                    Color(0xFF006064),
-                  ],
-                ),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF00BCD4).withOpacity(0.4),
-                    blurRadius: 15,
-                    offset: const Offset(0, 6),
-                    spreadRadius: 2,
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.photo_library_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-          ),
-        ),
-        // Samsung-style Upload Selected Photo Button
-        Positioned(
-          bottom: 100,
-          right: 20,
-          child: GestureDetector(
-            onTap: _uploadSelectedPhotoToBackend,
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF1976D2),
-                    Color(0xFF1565C0),
-                    Color(0xFF0D47A1),
-                  ],
-                ),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF1976D2).withOpacity(0.4),
-                    blurRadius: 15,
-                    offset: const Offset(0, 6),
-                    spreadRadius: 2,
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.add_photo_alternate_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-          ),
-        ),
-        // Test Navigation Button - Glassmorphism
-        Positioned(
-          bottom: 40,
-          right: 20,
-          child: GestureDetector(
-            onTap: () {
-              print('🟢 Green test button pressed!');
-              
-              // Direct navigation test - bypass all logic
-              try {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SimilarResultsWindow(
-                      query: "Test Query",
-                      searchTerms: ["test", "query"],
-                      results: [
-                        {
-                          'id': 1,
-                          'filename': 'test_photo.jpg',
-                          'path': '/test/photo.jpg',
-                          'tags': ['test', 'demo'],
-                          'score': 0.95,
-                          'date': '2024-09-17'
-                        }
-                      ],
-                    ),
-                  ),
-                );
-                print('🟢 Direct navigation successful!');
-              } catch (e) {
-                print('❌ Direct navigation failed: $e');
-              }
-            },
-            child: GlassmorphicContainer(
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              blur: 20,
-              alignment: Alignment.center,
-              border: 2,
-              linearGradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFF4CAF50).withOpacity(0.3),
-                  const Color(0xFF388E3C).withOpacity(0.2),
-                ],
-              ),
-              borderGradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFF4CAF50).withOpacity(0.6),
-                  const Color(0xFF388E3C).withOpacity(0.4),
-                ],
-              ),
-              child: const Icon(
-                Icons.science,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+
 
   Widget _buildVoiceOverlay() {
     return Positioned(
@@ -1483,6 +1365,395 @@ class _GalleryScreenState extends State<GalleryScreen> {
       },
     );
   }
+
+  // Professional Samsung-style dashboard with stats and insights
+  Widget _buildProfessionalDashboard() {
+    final totalPhotos = _isUsingCustomDirectory ? _customMediaList.length : _mediaList.length;
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        children: [
+          // Professional stats row
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF1976D2).withOpacity(0.15),
+                  const Color(0xFF00BCD4).withOpacity(0.10),
+                  const Color(0xFF000000).withOpacity(0.05),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF1976D2).withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildStatCard('Total', '$totalPhotos', Icons.photo_library_outlined),
+                _buildStatCard('Source', _selectedSource.isEmpty ? 'Gallery' : _selectedSource, Icons.folder_outlined),
+                _buildStatCard('Status', _isRecording ? 'Listening' : 'Ready', Icons.mic_outlined),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Professional voice status indicator
+          if (_errorMessage.isNotEmpty) _buildVoiceStatusCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String label, String value, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF000000).withOpacity(0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFF1976D2).withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              color: const Color(0xFF1976D2),
+              size: 20,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.7),
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Professional voice feedback card
+  Widget _buildVoiceStatusCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFFE57373).withOpacity(0.15),
+            const Color(0xFF000000).withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE57373).withOpacity(0.4),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE57373).withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.info_outline,
+              color: Color(0xFFE57373),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _errorMessage,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Professional enhanced gallery grid
+  Widget _buildProfessionalGalleryGrid() {
+    if (_isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF1976D2).withOpacity(0.2),
+                    const Color(0xFF00BCD4).withOpacity(0.1),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const CircularProgressIndicator(
+                color: Color(0xFF1976D2),
+                strokeWidth: 3,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Loading your memories',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Processing gallery content...',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.7),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (!_hasPermission || _errorMessage.isNotEmpty) {
+      return Center(
+        child: Container(
+          margin: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF1976D2).withOpacity(0.1),
+                const Color(0xFF000000).withOpacity(0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: const Color(0xFF1976D2).withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1976D2).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.photo_library_outlined,
+                  size: 48,
+                  color: Color(0xFF1976D2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                _errorMessage.isNotEmpty
+                    ? 'Gallery Access Required'
+                    : 'Permission Required',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _errorMessage.isNotEmpty
+                    ? _errorMessage
+                    : 'Please grant access to your gallery to continue',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white.withOpacity(0.8),
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _requestPermissionAndLoadMedia,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1976D2),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Grant Access',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Check if we have any media to display
+    bool hasMedia = _isUsingCustomDirectory
+        ? _customMediaList.isNotEmpty
+        : _mediaList.isNotEmpty;
+
+    if (!hasMedia) {
+      return Center(
+        child: Container(
+          margin: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF1976D2).withOpacity(0.1),
+                const Color(0xFF000000).withOpacity(0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: const Color(0xFF1976D2).withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1976D2).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.photo_outlined,
+                  size: 48,
+                  color: Color(0xFF1976D2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'No Content Found',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'No photos or videos found in the selected source',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white.withOpacity(0.8),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Professional enhanced grid with better spacing and animations
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      child: GridView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 0.8,
+        ),
+        itemCount: _isUsingCustomDirectory
+            ? _customMediaList.length
+            : _mediaList.length,
+        itemBuilder: (context, index) {
+          if (_isUsingCustomDirectory) {
+            return _buildProfessionalMediaCard(_customMediaList[index], index);
+          } else {
+            return _buildProfessionalMediaCard(_mediaList[index], index);
+          }
+        },
+      ),
+    );
+  }
+
+  // Professional media card with enhanced design
+  Widget _buildProfessionalMediaCard(dynamic mediaItem, int index) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF1976D2).withOpacity(0.1),
+            const Color(0xFF000000).withOpacity(0.3),
+          ],
+        ),
+        border: Border.all(
+          color: const Color(0xFF1976D2).withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF000000).withOpacity(0.4),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: mediaItem is AssetEntity
+            ? MediaThumbnail(asset: mediaItem)
+            : CustomMediaThumbnail(mediaItem: mediaItem),
+      ),
+    );
+  }
 }
 
 class MediaThumbnail extends StatelessWidget {
@@ -1501,29 +1772,29 @@ class MediaThumbnail extends StatelessWidget {
             onTap: () => _showFullImage(context),
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 color: const Color(0xFF1E1E1E),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                    spreadRadius: 2,
+                    color: Colors.black.withOpacity(0.6),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                    spreadRadius: 1,
                   ),
                   BoxShadow(
-                    color: const Color(0xFF00D4FF).withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
+                    color: const Color(0xFF1976D2).withOpacity(0.15),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     snapshot.data!,
-                    // Professional gradient overlay
+                    // Professional gradient overlay for better readability
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(

@@ -16,31 +16,64 @@ class SimilarResultsWindow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E1E),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF2D2D2D),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              ' Similar Results',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight + 10),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                const Color(0xFF1976D2).withOpacity(0.9),
+                const Color(0xFF1976D2).withOpacity(0.7),
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            centerTitle: false,
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Search Results',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                Text(
+                  'Found ${results.length} ${results.length == 1 ? 'match' : 'matches'}',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+            leading: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                onPressed: () => Navigator.pop(context),
               ),
             ),
-            Text(
-              'Found ${results.length} matches',
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          ),
         ),
       ),
       body: Padding(
@@ -109,16 +142,44 @@ class SimilarResultsWindow extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             
-            // Results Header
-            Text(
-              'Similar Images Found:',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            // Results Header with Top Match Indicator
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1976D2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Search Results',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (results.isNotEmpty)
+                        Text(
+                          'Top match highlighted in blue',
+                          style: TextStyle(
+                            color: Colors.grey.withOpacity(0.8),
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             
             // Results Grid
             Expanded(
@@ -151,14 +212,46 @@ class SimilarResultsWindow extends StatelessWidget {
                       itemBuilder: (context, index) {
                         final result = results[index];
                         final score = (result['score'] * 100).round();
+                        final isTopMatch = index == 0; // Highlight first result as top match
                         
-                        return Container(
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2D2D2D),
-                            borderRadius: BorderRadius.circular(12),
+                            gradient: isTopMatch 
+                                ? LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      const Color(0xFF1976D2).withOpacity(0.1),
+                                      const Color(0xFF2D2D2D),
+                                    ],
+                                  )
+                                : null,
+                            color: isTopMatch ? null : const Color(0xFF2D2D2D),
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Colors.green.withOpacity(0.3),
+                              color: isTopMatch 
+                                  ? const Color(0xFF1976D2)
+                                  : score >= 80 ? Colors.green.withOpacity(0.6)
+                                  : score >= 60 ? Colors.orange.withOpacity(0.6)
+                                  : Colors.grey.withOpacity(0.3),
+                              width: isTopMatch ? 2 : 1,
                             ),
+                            boxShadow: isTopMatch ? [
+                              BoxShadow(
+                                color: const Color(0xFF1976D2).withOpacity(0.3),
+                                blurRadius: 8,
+                                spreadRadius: 2,
+                                offset: const Offset(0, 4),
+                              ),
+                            ] : [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,20 +259,22 @@ class SimilarResultsWindow extends StatelessWidget {
                               // Image Display
                               Expanded(
                                 flex: 3,
-                                child: Container(
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.2),
-                                    borderRadius: const BorderRadius.only(
-                                      topLeft: Radius.circular(12),
-                                      topRight: Radius.circular(12),
-                                    ),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: const BorderRadius.only(
-                                      topLeft: Radius.circular(12),
-                                      topRight: Radius.circular(12),
-                                    ),
+                                child: Stack(
+                                  children: [
+                                    Container(
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.withOpacity(0.2),
+                                        borderRadius: const BorderRadius.only(
+                                          topLeft: Radius.circular(16),
+                                          topRight: Radius.circular(16),
+                                        ),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: const BorderRadius.only(
+                                          topLeft: Radius.circular(16),
+                                          topRight: Radius.circular(16),
+                                        ),
                                     child: result['imageUrl'] != null 
                                         ? Image.network(
                                             result['imageUrl'],
@@ -242,7 +337,53 @@ class SimilarResultsWindow extends StatelessWidget {
                                               ),
                                             ],
                                           ),
-                                  ),
+                                      ),
+                                    ),
+                                    // TOP MATCH Badge
+                                    if (isTopMatch)
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              colors: [Color(0xFF1976D2), Color(0xFF1565C0)],
+                                            ),
+                                            borderRadius: BorderRadius.circular(12),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.3),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.star,
+                                                color: Colors.white,
+                                                size: 12,
+                                              ),
+                                              SizedBox(width: 2),
+                                              Text(
+                                                'TOP',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
                               
@@ -255,25 +396,50 @@ class SimilarResultsWindow extends StatelessWidget {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       // Match Score
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.star,
-                                            size: 16,
-                                            color: score >= 80 ? Colors.green : 
-                                                   score >= 60 ? Colors.orange : Colors.grey,
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isTopMatch 
+                                              ? const Color(0xFF1976D2).withOpacity(0.2)
+                                              : (score >= 80 ? Colors.green : 
+                                                 score >= 60 ? Colors.orange : Colors.grey).withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: isTopMatch 
+                                                ? const Color(0xFF1976D2)
+                                                : (score >= 80 ? Colors.green : 
+                                                   score >= 60 ? Colors.orange : Colors.grey),
+                                            width: 1,
                                           ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '$score% match',
-                                            style: TextStyle(
-                                              color: score >= 80 ? Colors.green : 
-                                                     score >= 60 ? Colors.orange : Colors.grey,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              isTopMatch ? Icons.emoji_events : Icons.percent,
+                                              size: 14,
+                                              color: isTopMatch 
+                                                  ? const Color(0xFF1976D2)
+                                                  : (score >= 80 ? Colors.green : 
+                                                     score >= 60 ? Colors.orange : Colors.grey),
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              isTopMatch ? 'BEST MATCH' : '$score% match',
+                                              style: TextStyle(
+                                                color: isTopMatch 
+                                                    ? const Color(0xFF1976D2)
+                                                    : (score >= 80 ? Colors.green : 
+                                                       score >= 60 ? Colors.orange : Colors.grey),
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: isTopMatch ? 10 : 11,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                       const SizedBox(height: 4),
                                       
