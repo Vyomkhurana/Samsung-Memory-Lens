@@ -1100,7 +1100,7 @@ Generate a rich semantic description (2-3 sentences) that includes:
 Be comprehensive - include component parts, materials, and alternative terms. For vehicles, always mention wheels/tires/tyres. For furniture, mention wood/metal/fabric. For electronics, mention screen/buttons/plastic.`;
 
             const gptResponse = await openai.chat.completions.create({
-              model: "gpt-4",
+              model: "gpt-3.5-turbo",
               messages: [
                 {
                   role: "system", 
@@ -1118,10 +1118,10 @@ Be comprehensive - include component parts, materials, and alternative terms. Fo
             const gptDescription = gptResponse.choices[0].message.content.trim();
             semanticText = `${allFeatures.join(' ')} ${gptDescription}`;
             
-            console.log(`🧠 GPT-4 semantic description for ${filename}: ${gptDescription}`);
+            console.log(`🧠 GPT-3.5 semantic description for ${filename}: ${gptDescription}`);
             
           } catch (gptError) {
-            console.warn(`⚠️ GPT-4 analysis failed for ${filename}, using basic features:`, gptError.message);
+            console.warn(`⚠️ GPT analysis failed for ${filename}, using basic features:`, gptError.message);
             semanticText = allFeatures.join(' ');
           }
         } else {
@@ -1169,7 +1169,7 @@ Be comprehensive - include component parts, materials, and alternative terms. Fo
           labels,
           celebrities,
           texts,
-          semanticDescription,
+          semanticText,
           uploadTimestamp: new Date().toISOString(),
           source: 'flutter_gallery',
           path: file.path || `/gallery/${filename}`,
@@ -1191,7 +1191,7 @@ Be comprehensive - include component parts, materials, and alternative terms. Fo
                   labels,
                   celebrities,
                   texts,
-                  semanticDescription, // Rich semantic description for better understanding
+                  semanticText, // Rich semantic description for better understanding
                   uploadTimestamp: new Date().toISOString(),
                   source: 'flutter_gallery',
                   path: file.path || `/gallery/${filename}`,
