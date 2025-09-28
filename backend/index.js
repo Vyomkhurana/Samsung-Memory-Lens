@@ -7,6 +7,7 @@ import { QdrantClient } from "@qdrant/js-client-rest";
 import { v4 as uuidv4 } from "uuid";
 import AWS from "aws-sdk";
 import OpenAI from 'openai';
+import { PythonShell } from "python-shell";
 
 dotenv.config();
 
@@ -110,7 +111,7 @@ try {
   console.log("⚠️ Qdrant client initialization failed, using mock backend");
 }
 
-const COLLECTION_NAME = "images";
+const COLLECTION_NAME = "images_openai"; // OpenAI embeddings collection
 const VECTOR_SIZE = 1536; // OpenAI text-embedding-3-small dimensions
 
 async function ensureCollectionExists() {
@@ -166,19 +167,63 @@ async function ensureCollectionExists() {
   return true;
 }
 
-// 🧠 ENHANCED SEMANTIC SEARCH using OpenAI Embeddings + Rich Metadata
+// 🧠 SIMPLE & EFFECTIVE: Python-based SentenceTransformer embeddings
+async function buildEmbedding(text) {
+  return new Promise((resolve, reject) => {
+    let result = "";
+
+    const pyshell = new PythonShell("embeddings.py", {
+      mode: "text",
+      pythonOptions: ["-u"],
+      // Use system python - adjust path if needed
+      pythonPath: process.env.PYTHON_PATH || "python",
+    });
+
+    pyshell.send(text);
+
+    pyshell.on("message", (msg) => {
+      result += msg;
+    });
+
+    pyshell.end((err) => {
+      if (err) {
+        console.error("❌ Python embedding error:", err);
+        reject(err);
+      } else {
+        try {
+          resolve(JSON.parse(result));
+        } catch (parseErr) {
+          console.error("❌ Error parsing Python result:", parseErr);
+          reject(parseErr);
+        }
+      }
+    });
+  });
+}
+
+// 🧠 BEST QUALITY: OpenAI embeddings for superior semantic understanding
 async function getEmbedding(text) {
   try {
+    // Use OpenAI embeddings as primary (much better semantic understanding)
     const response = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: text,
       encoding_format: "float",
     });
     
+    console.log(`✅ OpenAI embedding generated (${response.data[0].embedding.length} dimensions)`);
     return response.data[0].embedding;
-  } catch (error) {
-    console.error("❌ Error getting OpenAI embedding:", error);
-    return null;
+    
+  } catch (openaiError) {
+    console.warn("⚠️ OpenAI embedding failed, trying Python fallback:", openaiError.message);
+    
+    // Fallback to Python-based embedding if OpenAI fails
+    try {
+      return await buildEmbedding(text);
+    } catch (pythonError) {
+      console.error("❌ All embedding methods failed:", pythonError.message);
+      return null;
+    }
   }
 }
 
@@ -494,89 +539,64 @@ function buildEmbedding(text, labels = [], celebrities = [], texts = []) {
   return magnitude > 0 ? vector.map(val => val / magnitude) : vector;
 }
 
-async function searchImagesByStatement(statement) {
+// 🎯 SUPERIOR SEMANTIC SEARCH: OpenAI embeddings for best results
+async function searchImagesByStatement(statement, topK = 10) {
   try {
-    console.log(`🔍 VECTOR-BASED SEMANTIC SEARCH for: "${statement}"`);
+    console.log(`🔍 OPENAI SEMANTIC SEARCH for: "${statement}"`);
     
-    // If Qdrant is not available, use lightweight semantic search
-    if (!isQdrantAvailable) {
-      console.log("⚠️ Vector database not available - using lightweight semantic search");
-      return semanticSearchWithoutPython(statement, imageDatabase);
-    }
-
-    const queryLower = statement.toLowerCase();
-    console.log(`📝 Query analysis: "${queryLower}"`);
+    // Get high-quality OpenAI embedding for the search statement
+    const statementEmbedding = await getEmbedding(statement);
     
-    // 🧠 VECTOR SEMANTIC SEARCH using OpenAI Embeddings + Qdrant
-    console.log("🤖 Getting OpenAI embedding for query...");
-    const queryEmbedding = await getEmbedding(queryLower);
-    
-    if (!queryEmbedding) {
-      console.log("❌ Failed to get query embedding, falling back to scroll search");
-      return await fallbackScrollSearch(queryLower);
+    if (!statementEmbedding) {
+      console.log("❌ Failed to get statement embedding");
+      return [];
     }
     
-    console.log("✅ OpenAI embedding obtained successfully");
+    console.log("✅ High-quality OpenAI embedding generated successfully");
     
-    // 🎯 PRIMARY SEARCH: Vector similarity search
-    console.log("🔍 Step 1: Vector similarity search with semantic matching");
-    const vectorResults = await searchWithVectorSimilarity(queryEmbedding, 50);
-    
-    let searchResults = [];
-    
-    if (vectorResults.length > 0) {
-      console.log(`🎯 Found ${vectorResults.length} vector matches`);
-      
-      // Filter results by score and add semantic context
-      vectorResults.forEach(result => {
-        if (result.score > 0.4) { // Higher threshold for quality
-          result.semanticReason = `Vector similarity: ${(result.score * 100).toFixed(1)}%`;
-          searchResults.push(result);
-          console.log(`✅ Vector match: ${result.payload.filename} (${(result.score * 100).toFixed(1)}% similarity)`);
-        }
-      });
-    }
-    
-    // 🔍 BACKUP SEARCH: Celebrity name matching for person queries
-    if (searchResults.length < 5) {
-      console.log("🌟 Step 2: Celebrity name search backup");
-      const celebrityResults = await searchCelebrities(queryLower);
-      
-      celebrityResults.forEach(match => {
-        if (!searchResults.find(existing => existing.id === match.id)) {
-          searchResults.push(match);
-        }
-      });
-    }
-    
-    // 🔍 FALLBACK SEARCH: Keyword matching if vector search fails
-    if (searchResults.length < 3) {
-      console.log("🌟 Step 3: Keyword fallback search");
-      const keywordResults = await searchKeywords(queryLower);
-      
-      keywordResults.forEach(match => {
-        if (!searchResults.find(existing => existing.id === match.id)) {
-          searchResults.push(match);
-        }
-      });
-    }
-    
-    // Sort by score (highest first) and limit results
-    searchResults.sort((a, b) => (b.score || 0) - (a.score || 0));
-    searchResults = searchResults.slice(0, 10);
-    
-    console.log(`✅ VECTOR SEARCH complete: ${searchResults.length} matches found`);
-    searchResults.forEach((result, i) => {
-      console.log(`  ${i+1}. ${result.matchType || 'vector'}: ${result.payload.filename} (score: ${(result.score || 0).toFixed(3)})`);
-      if (result.semanticReason) {
-        console.log(`     ${result.semanticReason}`);
-      }
+    // Direct vector search in Qdrant
+    const result = await qdrant.search(COLLECTION_NAME, {
+      vector: statementEmbedding,
+      limit: topK,
+      with_payload: true,
     });
     
-    return searchResults;
+    if (result.length > 0) {
+      console.log(`🎯 Found ${result.length} semantic matches`);
+      
+      // Format results for Flutter app
+      const searchResults = result.map((item, index) => ({
+        id: item.id,
+        filename: item.payload?.filename || `image_${item.id}`,
+        labels: item.payload?.labels || [],
+        celebrities: item.payload?.celebrities || [],
+        texts: item.payload?.texts || [],
+        uploadTimestamp: item.payload?.uploadTimestamp || new Date().toISOString(),
+        source: 'vector_search',
+        path: item.payload?.imageUrl || `/api/image/${item.id}`,
+        imageUrl: `https://samsung-memory-lens-38jd.onrender.com/api/image/${item.id}`,
+        score: item.score,
+        rank: index + 1,
+        matchType: 'semantic_vector',
+        semanticReason: `Vector similarity: ${(item.score * 100).toFixed(1)}%`
+      }));
+      
+      // Log results
+      searchResults.forEach((result, i) => {
+        console.log(`  ${i+1}. ${result.filename} (score: ${result.score.toFixed(3)})`);
+        if (result.labels.length > 0) {
+          console.log(`     Labels: ${result.labels.slice(0, 5).join(', ')}`);
+        }
+      });
+      
+      return searchResults;
+    } else {
+      console.log("❌ No semantic matches found");
+      return [];
+    }
     
   } catch (error) {
-    console.error("❌ Error in vector search:", error);
+    console.error("❌ Error in semantic search:", error);
     return [];
   }
 }
@@ -1066,19 +1086,21 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
           console.warn(`⚠️ Text detection failed for ${filename}:`, textError.message);
         }
 
-        // 4. Create rich semantic description for better vector matching
-        const semanticDescription = createSemanticDescription(labels, celebrities, texts);
-        console.log(`🧠 Semantic description for ${filename}: ${semanticDescription.substring(0, 100)}...`);
+        // 4. Create rich semantic description for better understanding
+        const allFeatures = [...labels, ...celebrities, ...texts];
+        const semanticText = allFeatures.join(' ') + (allFeatures.length > 0 ? ' ' : '') + 
+                           `image content: ${labels.slice(0, 5).join(', ')}`;
+        console.log(`🧠 Semantic text for ${filename}: ${semanticText.substring(0, 100)}...`);
         
-        // 5. Generate OpenAI embedding from semantic description
+        // 5. Generate high-quality OpenAI embedding
         let embedding = null;
         try {
-          embedding = await getEmbedding(semanticDescription);
-          console.log(`✅ Generated semantic vector for ${filename}`);
+          embedding = await getEmbedding(semanticText);
+          console.log(`✅ Generated OpenAI semantic vector for ${filename}`);
         } catch (embeddingError) {
-          console.warn(`⚠️ OpenAI embedding failed for ${filename}, using fallback:`, embeddingError.message);
-          // Fallback to simple embedding
-          embedding = buildEmbedding(semanticDescription, labels, celebrities, texts);
+          console.warn(`⚠️ OpenAI embedding failed for ${filename}:`, embeddingError.message);
+          failed++;
+          continue;
         }
         
         // Validate embedding before storing

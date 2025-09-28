@@ -1,38 +1,60 @@
-# embeddings.py - Lightweight version for OnRender 512MB limit
+#!/usr/bin/env python3
+"""
+SentenceTransformer embeddings for semantic image search
+Uses all-MiniLM-L6-v2 model (384 dimensions)
+"""
+
 import sys
 import json
-import hashlib
 
-def create_simple_embedding(text, dimensions=384):
-    """
-    Create a simple hash-based embedding for text matching.
-    This replaces sentence-transformers to stay within memory limits.
-    """
-    # Convert text to lowercase and clean
-    text = text.lower().strip()
+try:
+    from sentence_transformers import SentenceTransformer
     
-    # Create multiple hash seeds for different dimensions
-    embedding = []
-    words = text.split()
+    # Load the model once
+    model = SentenceTransformer('all-MiniLM-L6-v2')
     
-    for i in range(dimensions):
-        # Use different combinations of words and positions
-        seed_text = f"{text}_{i}"
-        if i < len(words):
-            seed_text += f"_{words[i]}"
+    def get_embedding(text):
+        """Get SentenceTransformer embedding"""
+        embedding = model.encode(text)
+        return embedding.tolist()
         
-        # Create hash and normalize to [-1, 1] range
-        hash_val = int(hashlib.md5(seed_text.encode()).hexdigest()[:8], 16)
-        normalized = (hash_val % 2000 - 1000) / 1000.0
-        embedding.append(normalized)
+except ImportError:
+    # Fallback to simple hash-based embeddings if SentenceTransformer not available
+    import hashlib
     
-    return embedding
+    def get_embedding(text, dimensions=384):
+        """
+        Create a simple hash-based embedding for text matching.
+        Fallback when SentenceTransformer is not available.
+        """
+        text = text.lower().strip()
+        embedding = []
+        words = text.split()
+        
+        for i in range(dimensions):
+            seed_text = f"{text}_{i}"
+            if i < len(words):
+                seed_text += f"_{words[i]}"
+            
+            hash_val = int(hashlib.md5(seed_text.encode()).hexdigest()[:8], 16)
+            normalized = (hash_val % 2000 - 1000) / 1000.0
+            embedding.append(normalized)
+        
+        return embedding
 
-# Read text from stdin
-text = sys.stdin.read().strip()
+def main():
+    try:
+        # Read text from stdin
+        text = sys.stdin.read().strip()
+        if text:
+            # Generate embedding
+            embedding = get_embedding(text)
+            # Output as JSON
+            print(json.dumps(embedding))
+            sys.stdout.flush()
+    except Exception as e:
+        print(json.dumps({"error": str(e)}), file=sys.stderr)
+        sys.exit(1)
 
-# Generate simple embedding (no ML libraries needed)
-embedding = create_simple_embedding(text)
-
-# Return as JSON
-print(json.dumps(embedding))
+if __name__ == "__main__":
+    main()
