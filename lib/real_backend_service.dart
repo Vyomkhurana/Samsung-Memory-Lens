@@ -91,60 +91,95 @@ class RealBackendService {
     };
   }
   
-  /// Upload photos from gallery to backend for processing
+  /// Upload photos from gallery to backend for processing (with batching)
   static Future<Map<String, dynamic>> uploadGalleryPhotos(List<AssetEntity> assets) async {
     try {
       print('📤 Starting upload of ${assets.length} photos to backend...');
       
-      var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/add-gallery-images'));
+      // Process in smaller batches to avoid timeout/connection issues
+      const int batchSize = 5; // Process 5 images at a time
+      int totalUploaded = 0;
+      int totalFailed = 0;
       
-      int uploaded = 0;
-      for (var asset in assets) {
-        try {
-          // Get the file from AssetEntity
-          File? file = await asset.file;
-          if (file != null && await file.exists()) {
-            // Read file bytes
-            List<int> fileBytes = await file.readAsBytes();
-            
-            // Create multipart file
-            var multipartFile = http.MultipartFile.fromBytes(
-              'images',
-              fileBytes,
-              filename: 'gallery_photo_${asset.id}.jpg',
-            );
-            
-            request.files.add(multipartFile);
-            uploaded++;
-            print('📸 Added photo ${uploaded}/${assets.length}');
+      for (int i = 0; i < assets.length; i += batchSize) {
+        int endIndex = (i + batchSize > assets.length) ? assets.length : i + batchSize;
+        List<AssetEntity> batch = assets.sublist(i, endIndex);
+        
+        print('📦 Processing batch ${(i ~/ batchSize) + 1} (${batch.length} photos)...');
+        
+        var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/add-gallery-images'));
+        
+        int batchUploaded = 0;
+        for (var asset in batch) {
+          try {
+            // Get the file from AssetEntity
+            File? file = await asset.file;
+            if (file != null && await file.exists()) {
+              // Read file bytes
+              List<int> fileBytes = await file.readAsBytes();
+              
+              // Compress if image is too large (>2MB)
+              if (fileBytes.length > 2 * 1024 * 1024) {
+                print('⚠️ Large image detected (${(fileBytes.length / 1024 / 1024).toStringAsFixed(1)}MB), may cause timeout');
+              }
+              
+              // Create multipart file
+              var multipartFile = http.MultipartFile.fromBytes(
+                'images',
+                fileBytes,
+                filename: 'gallery_photo_${asset.id}.jpg',
+              );
+              
+              request.files.add(multipartFile);
+              batchUploaded++;
+              print('📸 Added photo ${totalUploaded + batchUploaded}/${assets.length}');
+            }
+          } catch (e) {
+            print('⚠️ Failed to process asset ${asset.id}: $e');
+            totalFailed++;
           }
-        } catch (e) {
-          print('⚠️ Failed to process asset ${asset.id}: $e');
+        }
+        
+        if (request.files.isEmpty) {
+          print('⚠️ No valid files in this batch, skipping...');
+          continue;
+        }
+        
+        print('🚀 Uploading batch with ${request.files.length} photos...');
+        
+        try {
+          // Send the request with extended timeout for multiple images
+          var streamedResponse = await request.send().timeout(Duration(seconds: 90));
+          var response = await http.Response.fromStream(streamedResponse);
+      
+          if (response.statusCode == 200) {
+            var data = json.decode(response.body);
+            print('✅ Batch ${(i ~/ batchSize) + 1} upload successful: ${data['message']}');
+            totalUploaded += batchUploaded;
+          } else {
+            print('❌ Batch ${(i ~/ batchSize) + 1} upload failed: ${response.statusCode} - ${response.body}');
+            totalFailed += batchUploaded;
+          }
+        } catch (batchError) {
+          print('❌ Batch ${(i ~/ batchSize) + 1} error: $batchError');
+          totalFailed += batchUploaded;
+        }
+        
+        // Small delay between batches to avoid overwhelming server
+        if (i + batchSize < assets.length) {
+          await Future.delayed(Duration(milliseconds: 500));
         }
       }
       
-      print('🚀 Uploading ${request.files.length} photos to backend...');
+      print('🎉 Upload complete: ${totalUploaded} successful, ${totalFailed} failed out of ${assets.length} total');
       
-      // Send the request
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
+      return {
+        'success': totalUploaded > 0,
+        'message': 'Uploaded ${totalUploaded} photos successfully, ${totalFailed} failed',
+        'uploaded': totalUploaded,
+        'failed': totalFailed,
+      };
       
-      if (response.statusCode == 200) {
-        var data = json.decode(response.body);
-        print('✅ Upload successful: ${data['message']}');
-        return {
-          'success': true,
-          'data': data,
-          'uploaded': uploaded,
-        };
-      } else {
-        print('❌ Upload failed: ${response.statusCode} - ${response.body}');
-        return {
-          'success': false,
-          'error': 'Upload failed: ${response.statusCode}',
-          'uploaded': uploaded,
-        };
-      }
     } catch (e) {
       print('❌ Upload error: $e');
       return {

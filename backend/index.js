@@ -10,9 +10,18 @@ import session from "express-session";
 dotenv.config();
 
 const app = express();
-const upload = multer();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Configure multer with size limits
+const upload = multer({
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB per file
+    files: 10 // Maximum 10 files per request
+  }
+});
+
+// Configure express with size limits
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static("public"));
 
 // AWS Configuration
@@ -331,7 +340,7 @@ async function searchImagesByStatement(statement, topK = 10) {
 }
 
 // Upload Images Endpoint
-app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => {
+app.post("/add-gallery-images", upload.array("images", 10), async (req, res) => {
   try {
     await ensureCollectionExists();
     
@@ -339,7 +348,13 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
       return res.status(400).json({ error: "No images uploaded" });
     }
 
-    console.log(`Processing ${req.files.length} images from Flutter gallery...`);
+    console.log(`📦 Processing batch of ${req.files.length} images from Flutter gallery...`);
+    
+    // Log file sizes for debugging
+    req.files.forEach((file, index) => {
+      const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+      console.log(`  📸 Image ${index + 1}: ${file.originalname} (${sizeMB}MB)`);
+    });
     
     const results = [];
     let successCount = 0;
@@ -347,11 +362,13 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
 
     for (const file of req.files) {
       try {
+        console.log(`🔄 Processing ${file.originalname}...`);
         const result = await processImageBuffer(file.buffer, file.originalname);
         results.push(result);
         successCount++;
+        console.log(`✅ Successfully processed ${file.originalname}`);
       } catch (error) {
-        console.error(`Failed to process ${file.originalname}:`, error);
+        console.error(`❌ Failed to process ${file.originalname}:`, error.message);
         failCount++;
       }
     }
