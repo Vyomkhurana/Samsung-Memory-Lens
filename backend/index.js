@@ -36,8 +36,8 @@ const qdrant = new QdrantClient({
   url: process.env.QDRANTDB_ENDPOINT, 
   apiKey: process.env.QDRANTDB_API_KEY 
 });
-const COLLECTION_NAME = "images_384";
-const VECTOR_SIZE = 384; // SentenceTransformer (all-MiniLM-L6-v2)
+const COLLECTION_NAME = "samsung_voice_search";
+const VECTOR_SIZE = 1536; // OpenAI embeddings optimized for voice search
 
 // Initialize Vector Database
 async function ensureCollectionExists() {
@@ -64,13 +64,21 @@ const openai = new OpenAI({
 
 async function buildEmbedding(text) {
   try {
-    console.log(`Generating embedding for: "${text.substring(0, 50)}..."`);
+    console.log(`Generating embedding for: "${text}"`);
     
-    // Use OpenAI embeddings but truncate to 384 dimensions to match SentenceTransformer
+    if (!text || text.trim().length === 0) {
+      console.log("Empty text, using generic embedding");
+      text = "generic image content";
+    }
+    
+    // Create enhanced text for better voice search matching
+    const enhancedText = enhanceTextForVoiceSearch(text);
+    console.log(`Enhanced text: "${enhancedText}"`);
+    
+    // Use OpenAI embeddings optimized for semantic search
     const response = await openai.embeddings.create({
       model: "text-embedding-3-small",
-      input: text,
-      dimensions: 384, // Request 384 dimensions directly
+      input: enhancedText,
     });
     
     const embedding = response.data[0].embedding;
@@ -82,8 +90,54 @@ async function buildEmbedding(text) {
     
     // Final fallback: create a simple hash-based embedding
     console.log("Using simple hash-based embedding as final fallback");
-    return createSimpleEmbedding(text);
+    return createSimpleEmbedding(text || "generic content");
   }
+}
+
+// Enhance search query for voice commands
+function enhanceSearchQuery(query) {
+  let enhanced = query.toLowerCase().trim();
+  
+  // Handle common voice search patterns
+  if (enhanced.includes('car') || enhanced.includes('cars')) {
+    enhanced = 'car automobile vehicle sedan transportation wheels tires motor driving';
+  } else if (enhanced.includes('house') || enhanced.includes('home')) {
+    enhanced = 'house home building residence dwelling property architecture';
+  } else if (enhanced.includes('metal body')) {
+    enhanced = 'metal metallic chrome steel aluminum shiny surface car automobile vehicle';
+  } else if (enhanced.includes('person') || enhanced.includes('people')) {
+    enhanced = 'person human individual people face portrait man woman';
+  }
+  
+  return enhanced;
+}
+
+// Enhance text for better voice search matching
+function enhanceTextForVoiceSearch(text) {
+  // Add synonyms and related terms for common voice search queries
+  let enhanced = text.toLowerCase();
+  
+  // Car-related enhancements
+  if (enhanced.includes('car') || enhanced.includes('sedan') || enhanced.includes('vehicle')) {
+    enhanced += ' automobile motor vehicle transportation wheels tires driving road';
+  }
+  
+  // House-related enhancements
+  if (enhanced.includes('house') || enhanced.includes('building') || enhanced.includes('home')) {
+    enhanced += ' residence dwelling property architecture structure';
+  }
+  
+  // Person-related enhancements
+  if (enhanced.includes('person') || enhanced.includes('man') || enhanced.includes('woman')) {
+    enhanced += ' human individual people face portrait';
+  }
+  
+  // Metal-related enhancements for "metal body" searches
+  if (enhanced.includes('metal')) {
+    enhanced += ' metallic steel aluminum chrome shiny surface material';
+  }
+  
+  return enhanced;
 }
 
 // Simple hash-based embedding fallback (384 dimensions)
@@ -201,28 +255,40 @@ async function processImageBuffer(imageBytes, filename) {
   };
 }
 
-// Search by user statement using Python embeddings
-async function searchImagesByStatement(statement, topK = 5) {
-  console.log(`Searching for: "${statement}"`);
+// Search by voice statement with enhanced semantic matching
+async function searchImagesByStatement(statement, topK = 10) {
+  console.log(`Voice search for: "${statement}"`);
   
-  const statementEmbedding = await buildEmbedding(statement);
+  // Enhance the search query for better voice matching
+  const enhancedQuery = enhanceSearchQuery(statement);
+  console.log(`Enhanced search query: "${enhancedQuery}"`);
+  
+  const statementEmbedding = await buildEmbedding(enhancedQuery);
 
   const result = await qdrant.search(COLLECTION_NAME, {
     vector: statementEmbedding,
-    limit: topK,
+    limit: topK * 2, // Get more results to filter
     with_payload: true,
   });
 
   if (result.length > 0) {
-    console.log(`Found ${result.length} matches`);
+    console.log(`Found ${result.length} potential matches`);
     
     // Log all scores for debugging
     result.forEach((item, index) => {
       console.log(`  ${index + 1}. ${item.payload?.filename || 'unknown'} (score: ${item.score.toFixed(3)})`);
     });
+    
+    // Filter by confidence threshold for voice searches
+    const VOICE_CONFIDENCE_THRESHOLD = 0.3; // Higher threshold for voice searches
+    const highConfidenceResults = result.filter(item => item.score >= VOICE_CONFIDENCE_THRESHOLD);
+    
+    console.log(`After voice confidence filtering (${VOICE_CONFIDENCE_THRESHOLD}): ${highConfidenceResults.length} matches`);
+    
+    const finalResults = highConfidenceResults.length > 0 ? highConfidenceResults.slice(0, topK) : result.slice(0, 3);
 
     // Return all relevant images with their scores - Flutter compatible format
-    return result.map((item, index) => ({
+    return finalResults.map((item, index) => ({
       id: item.id,
       filename: item.payload?.filename || `image_${item.id}`,
       labels: item.payload?.labels || [],
