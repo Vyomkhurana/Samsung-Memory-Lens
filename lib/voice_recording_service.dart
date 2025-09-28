@@ -29,8 +29,8 @@ class VoiceRecordingService {
           
           // Special handling for no_match errors
           if (error.errorMsg == 'error_no_match') {
-            print('⚠️ No match error - this might be due to short words or background noise');
-            print('💡 Try speaking more clearly or using longer phrases');
+            print('WARNING: No match error - this might be due to short words or background noise');
+            print('TIP: Try speaking more clearly or using longer phrases');
           }
           
           _isListening = false;

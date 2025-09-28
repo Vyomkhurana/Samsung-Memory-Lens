@@ -394,30 +394,30 @@ class _GalleryScreenState extends State<GalleryScreen> {
         print('Upload successful: Photo processed');
       } else {
         setState(() {
-          _errorMessage = '❌ Upload failed: ${uploadResult['error']}';
+          _errorMessage = 'Upload failed: ${uploadResult['error']}';
         });
-        print('❌ Upload failed: ${uploadResult['error']}');
+        print('Upload failed: ${uploadResult['error']}');
       }
 
     } catch (e) {
       setState(() {
-        _errorMessage = '❌ Upload error: $e';
+        _errorMessage = 'Upload error: $e';
       });
-      print('❌ Upload error: $e');
+      print('Upload error: $e');
     }
   }
 
   // Upload multiple photos to backend (bulk upload)
   Future<void> _uploadMultiplePhotosToBackend() async {
     setState(() {
-      _errorMessage = '📤 Preparing bulk photo upload...';
+      _errorMessage = 'Preparing bulk photo upload...';
     });
 
     try {
       print('📱 Starting bulk photo upload (10 photos)...');
       
       setState(() {
-        _errorMessage = '📤 Uploading 10 photos to backend...';
+        _errorMessage = 'Uploading 10 photos...';
       });
       
       // Upload 10 sample photos from gallery
@@ -428,20 +428,20 @@ class _GalleryScreenState extends State<GalleryScreen> {
         var total = uploadResult['total'] ?? 10;
         
         setState(() {
-          _errorMessage = '✅ Successfully uploaded $uploaded/$total photos!';
+          _errorMessage = 'Successfully uploaded $uploaded/$total photos!';
         });
         
         print('✅ Bulk upload successful: $uploaded photos processed');
       } else {
         setState(() {
-          _errorMessage = '❌ Bulk upload failed: ${uploadResult['error']}';
+          _errorMessage = 'Bulk upload failed: ${uploadResult['error']}';
         });
         print('❌ Bulk upload failed: ${uploadResult['error']}');
       }
       
     } catch (e) {
       setState(() {
-        _errorMessage = '❌ Error during photo selection: $e';
+        _errorMessage = 'Error during photo selection: $e';
       });
       print('❌ Error during photo selection: $e');
     }
@@ -461,7 +461,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       if (!permission.isAuth) {
         print('❌ Gallery permission denied');
         setState(() {
-          _errorMessage = '❌ Gallery permission required to select photos';
+          _errorMessage = 'Gallery permission required to select photos';
         });
         return null;
       }
@@ -484,7 +484,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     } catch (e) {
       print('❌ Error loading photos: $e');
       setState(() {
-        _errorMessage = '❌ Error loading photos: $e';
+        _errorMessage = 'Error loading photos: $e';
       });
       return null;
     }
@@ -492,7 +492,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     if (photos.isEmpty) {
       print('❌ No photos available');
       setState(() {
-        _errorMessage = '❌ No photos found in gallery';
+        _errorMessage = 'No photos found in gallery';
       });
       return null;
     }
@@ -577,7 +577,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   // Legacy method - keep for now but will replace with selected photo upload
   Future<void> _uploadPhotosToBackend() async {
     setState(() {
-      _errorMessage = '📤 Uploading photos to backend...';
+      _errorMessage = 'Uploading photos...';
     });
 
     try {
@@ -1659,7 +1659,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
         ),
         icon: const Icon(Icons.cloud_upload_outlined, size: 20),
         label: const Text(
-          'Upload Photos to Backend',
+          'Upload Photos',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -1717,9 +1717,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
     if (!_hasPermission || _errorMessage.isNotEmpty) {
       return Center(
-        child: Container(
-          margin: const EdgeInsets.all(32),
-          padding: const EdgeInsets.all(32),
+        child: SingleChildScrollView(
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -1748,19 +1749,19 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   color: Color(0xFF1976D2),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               Text(
                 _errorMessage.isNotEmpty
                     ? 'Gallery Access Required'
                     : 'Permission Required',
                 style: const TextStyle(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 _errorMessage.isNotEmpty
                     ? _errorMessage
@@ -1772,7 +1773,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   height: 1.4,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _requestPermissionAndLoadMedia,
                 style: ElevatedButton.styleFrom(
@@ -1794,6 +1795,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
               ),
             ],
           ),
+        ),
         ),
       );
     }
