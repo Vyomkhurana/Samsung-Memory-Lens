@@ -300,14 +300,14 @@ async function searchImagesByStatement(statement, topK = 10) {
     let confidenceThreshold;
     const query = enhancedQuery.toLowerCase();
     
-    // Higher threshold for specific searches like celebrities, people, brands
+    // Lower threshold for more inclusive search results
     if (query.includes('celebrity') || query.includes('person') || query.includes('people') || 
         query.includes('actor') || query.includes('actress') || query.includes('star')) {
-      confidenceThreshold = 0.25; // 25% minimum for celebrity searches
+      confidenceThreshold = 0.1; // 10% minimum for celebrity searches
     } else if (query.includes('car') || query.includes('vehicle') || query.includes('automobile')) {
-      confidenceThreshold = 0.20; // 20% for car searches  
+      confidenceThreshold = 0.1; // 10% for car searches  
     } else {
-      confidenceThreshold = 0.30; // 30% default threshold
+      confidenceThreshold = 0.1; // 10% default threshold - more inclusive
     }
     
     console.log(`Using confidence threshold: ${confidenceThreshold} for query: "${query}"`);
