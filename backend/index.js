@@ -105,6 +105,8 @@ function enhanceSearchQuery(query) {
     enhanced = 'house home building residence dwelling property architecture';
   } else if (enhanced.includes('metal body')) {
     enhanced = 'metal metallic chrome steel aluminum shiny surface car automobile vehicle';
+  } else if (enhanced.includes('celebrity') || enhanced.includes('celebrities')) {
+    enhanced = 'celebrity actor actress star famous person bollywood hollywood film movie';
   } else if (enhanced.includes('person') || enhanced.includes('people')) {
     enhanced = 'person human individual people face portrait man woman';
   }
@@ -130,6 +132,12 @@ function enhanceTextForVoiceSearch(text) {
   // Person-related enhancements
   if (enhanced.includes('person') || enhanced.includes('man') || enhanced.includes('woman')) {
     enhanced += ' human individual people face portrait';
+  }
+  
+  // Celebrity-related enhancements
+  if (enhanced.includes('akshay') || enhanced.includes('kumar') || 
+      enhanced.includes('celebrity') || enhanced.includes('actor') || enhanced.includes('actress')) {
+    enhanced += ' celebrity star famous person bollywood hollywood film movie actor actress';
   }
   
   // Metal-related enhancements for "metal body" searches
@@ -279,13 +287,27 @@ async function searchImagesByStatement(statement, topK = 10) {
       console.log(`  ${index + 1}. ${item.payload?.filename || 'unknown'} (score: ${item.score.toFixed(3)})`);
     });
     
-    // Filter by confidence threshold for voice searches
-    const VOICE_CONFIDENCE_THRESHOLD = 0.3; // Higher threshold for voice searches
-    const highConfidenceResults = result.filter(item => item.score >= VOICE_CONFIDENCE_THRESHOLD);
+    // Smart confidence filtering based on query type
+    let confidenceThreshold;
+    const query = enhancedQuery.toLowerCase();
     
-    console.log(`After voice confidence filtering (${VOICE_CONFIDENCE_THRESHOLD}): ${highConfidenceResults.length} matches`);
+    // Higher threshold for specific searches like celebrities, people, brands
+    if (query.includes('celebrity') || query.includes('person') || query.includes('people') || 
+        query.includes('actor') || query.includes('actress') || query.includes('star')) {
+      confidenceThreshold = 0.25; // 25% minimum for celebrity searches
+    } else if (query.includes('car') || query.includes('vehicle') || query.includes('automobile')) {
+      confidenceThreshold = 0.20; // 20% for car searches  
+    } else {
+      confidenceThreshold = 0.30; // 30% default threshold
+    }
     
-    const finalResults = highConfidenceResults.length > 0 ? highConfidenceResults.slice(0, topK) : result.slice(0, 3);
+    console.log(`Using confidence threshold: ${confidenceThreshold} for query: "${query}"`);
+    
+    const highConfidenceResults = result.filter(item => item.score >= confidenceThreshold);
+    console.log(`After confidence filtering (${confidenceThreshold}): ${highConfidenceResults.length} matches`);
+    
+    // Only show high-confidence results, no fallback to poor matches
+    const finalResults = highConfidenceResults.slice(0, topK);
 
     // Return all relevant images with their scores - Flutter compatible format
     return finalResults.map((item, index) => ({
