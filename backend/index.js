@@ -535,8 +535,12 @@ async function searchImagesByStatement(statement, topK = 10) {
   try {
     console.log(`🔍 OPENAI SEMANTIC SEARCH for: "${statement}"`);
     
-    // Get high-quality OpenAI embedding for the search statement
-    const statementEmbedding = await getEmbedding(statement);
+    // Expand query with synonyms for better matching
+    const expandedStatement = expandSearchQuery(statement);
+    console.log(`🔍 Expanded search query: "${expandedStatement}"`);
+    
+    // Get high-quality OpenAI embedding for the expanded search statement
+    const statementEmbedding = await getEmbedding(expandedStatement);
     
     if (!statementEmbedding) {
       console.log("❌ Failed to get statement embedding");
@@ -553,10 +557,21 @@ async function searchImagesByStatement(statement, topK = 10) {
     });
     
     if (result.length > 0) {
-      console.log(`🎯 Found ${result.length} semantic matches`);
+      console.log(`🎯 Found ${result.length} potential matches`);
+      
+      // Filter by similarity threshold - only return high-quality matches
+      const SIMILARITY_THRESHOLD = 0.25; // Only return results with >25% similarity (lowered due to improved semantic quality)
+      const filteredResults = result.filter(item => item.score >= SIMILARITY_THRESHOLD);
+      
+      console.log(`✅ After filtering (threshold: ${SIMILARITY_THRESHOLD}): ${filteredResults.length} quality matches`);
+      
+      if (filteredResults.length === 0) {
+        console.log("❌ No high-quality semantic matches found");
+        return [];
+      }
       
       // Format results for Flutter app
-      const searchResults = result.map((item, index) => ({
+      const searchResults = filteredResults.map((item, index) => ({
         id: item.id,
         filename: item.payload?.filename || `image_${item.id}`,
         labels: item.payload?.labels || [],
@@ -572,12 +587,18 @@ async function searchImagesByStatement(statement, topK = 10) {
         semanticReason: `Vector similarity: ${(item.score * 100).toFixed(1)}%`
       }));
       
-      // Log results
+      // Log quality results only
       searchResults.forEach((result, i) => {
-        console.log(`  ${i+1}. ${result.filename} (score: ${result.score.toFixed(3)})`);
+        console.log(`  ${i+1}. ${result.filename} (score: ${result.score.toFixed(3)}) ✅ HIGH QUALITY`);
         if (result.labels.length > 0) {
           console.log(`     Labels: ${result.labels.slice(0, 5).join(', ')}`);
         }
+      });
+      
+      // Log filtered out results for debugging
+      const rejectedResults = result.filter(item => item.score < SIMILARITY_THRESHOLD);
+      rejectedResults.forEach((item, i) => {
+        console.log(`  ❌ FILTERED OUT: ${item.payload?.filename} (score: ${item.score.toFixed(3)}) - Too low similarity`);
       });
       
       return searchResults;
@@ -620,6 +641,32 @@ async function searchCelebrities(queryLower) {
     console.log("⚠️ Celebrity search fallback");
     return [];
   }
+}
+
+// 🔍 Helper function to expand search queries
+function expandSearchQuery(query) {
+  const queryLower = query.toLowerCase();
+  const expansions = [];
+  
+  // Add original query
+  expansions.push(query);
+  
+  // Add synonyms and related terms
+  if (queryLower.includes('house') || queryLower.includes('home')) {
+    expansions.push('house', 'home', 'residence', 'dwelling', 'property', 'building', 'villa', 'mansion');
+  }
+  if (queryLower.includes('car') || queryLower.includes('vehicle') || queryLower.includes('automobile')) {
+    expansions.push('car', 'vehicle', 'automobile', 'transportation', 'wheels', 'tires', 'tyres', 'sedan', 'suv');
+  }
+  if (queryLower.includes('pool') || queryLower.includes('swimming')) {
+    expansions.push('pool', 'swimming pool', 'water feature', 'swimming', 'water');
+  }
+  if (queryLower.includes('person') || queryLower.includes('people') || queryLower.includes('human')) {
+    expansions.push('person', 'people', 'human', 'individual', 'man', 'woman', 'child');
+  }
+  
+  // Return expanded query
+  return expansions.join(' ');
 }
 
 // 🔍 Helper function for keyword search
@@ -1084,20 +1131,25 @@ app.post("/add-gallery-images", upload.array("images", 50), async (req, res) => 
         if (allFeatures.length > 0) {
           // Use GPT-4 to analyze Rekognition data and generate rich semantic description
           try {
-            const analysisPrompt = `Based on these AWS Rekognition detection results for an image, generate a comprehensive semantic description for vector-based search. Include ALL possible components, materials, and related terms someone might search for:
+            const analysisPrompt = `Based on these AWS Rekognition detection results, create a FOCUSED semantic description for vector search optimization. Priority: KEYWORDS FIRST, then context.
 
-Labels detected: ${labels.join(', ') || 'none'}
-Celebrities detected: ${celebrities.join(', ') || 'none'}  
-Text detected: ${texts.join(', ') || 'none'}
+Labels: ${labels.join(', ') || 'none'}
+Celebrities: ${celebrities.join(', ') || 'none'}  
+Text: ${texts.join(', ') || 'none'}
 
-Generate a rich semantic description (2-3 sentences) that includes:
-1. ALL physical components (for cars: wheels, tires, doors, windows, body, engine, etc.)
-2. Materials and textures (metal, plastic, glass, rubber, fabric, etc.)  
-3. Visual characteristics (colors, shapes, surfaces)
-4. Context and usage scenarios
-5. Related concepts and synonyms (tyre=tire, automobile=vehicle=car)
+CRITICAL: Start with PRIMARY KEYWORDS, then add context. Format: "PRIMARY_OBJECT secondary_objects materials context"
 
-Be comprehensive - include component parts, materials, and alternative terms. For vehicles, always mention wheels/tires/tyres. For furniture, mention wood/metal/fabric. For electronics, mention screen/buttons/plastic.`;
+For BUILDINGS/HOUSES: Start with "house home building residence dwelling" + specific type (villa, mansion, apartment) + materials (concrete, wood, brick) + features (windows, doors, roof)
+For VEHICLES: Start with "car vehicle automobile transportation" + type (sedan, suv, truck) + parts (wheels, tires, tyres, doors, windows) + context
+For PEOPLE: Start with "person human individual" + characteristics + context
+For OBJECTS: Start with main object name + synonyms + materials + usage
+
+Example outputs:
+- "house home building residence villa luxury modern concrete glass windows doors roof architecture interior design swimming pool water"
+- "car vehicle automobile sedan transportation wheels tires doors windows metal road driving parking"
+- "person human individual man standing wearing shirt pants walking outdoor"
+
+Keep it KEYWORD-DENSE but natural for embedding similarity.`;
 
             const gptResponse = await openai.chat.completions.create({
               model: "gpt-3.5-turbo",
@@ -1116,7 +1168,26 @@ Be comprehensive - include component parts, materials, and alternative terms. Fo
             });
             
             const gptDescription = gptResponse.choices[0].message.content.trim();
-            semanticText = `${allFeatures.join(' ')} ${gptDescription}`;
+            
+            // Create focused semantic text with keyword emphasis
+            const keywordSection = allFeatures.join(' ');
+            const expandedKeywords = allFeatures.flatMap(feature => {
+              // Add synonyms and related terms for better matching
+              const synonyms = [];
+              if (feature.includes('house') || feature.includes('building')) {
+                synonyms.push('home', 'residence', 'dwelling', 'property', 'house', 'building');
+              }
+              if (feature.includes('car') || feature.includes('vehicle')) {
+                synonyms.push('automobile', 'car', 'vehicle', 'transportation', 'wheels', 'tires', 'tyres');
+              }
+              if (feature.includes('pool')) {
+                synonyms.push('swimming pool', 'water feature', 'pool');
+              }
+              return synonyms;
+            });
+            
+            // Prioritize keywords first, then add description
+            semanticText = `${keywordSection} ${expandedKeywords.join(' ')} ${gptDescription}`;
             
             console.log(`🧠 GPT-3.5 semantic description for ${filename}: ${gptDescription}`);
             
