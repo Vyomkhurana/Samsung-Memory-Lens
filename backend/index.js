@@ -111,7 +111,7 @@ try {
 }
 
 const COLLECTION_NAME = "images";
-const VECTOR_SIZE = 384;
+const VECTOR_SIZE = 1536; // OpenAI text-embedding-3-small dimensions
 
 async function ensureCollectionExists() {
   if (!qdrant) {
@@ -120,8 +120,30 @@ async function ensureCollectionExists() {
   }
   
   try {
-    await qdrant.getCollection(COLLECTION_NAME);
+    const collection = await qdrant.getCollection(COLLECTION_NAME);
     console.log("✅ Collection exists.");
+    
+    // Check if vector size matches
+    if (collection.config?.params?.vectors?.size !== VECTOR_SIZE) {
+      console.log(`⚠️ Vector size mismatch. Expected: ${VECTOR_SIZE}, Found: ${collection.config?.params?.vectors?.size}`);
+      console.log("🔄 Recreating collection with correct dimensions...");
+      
+      try {
+        await qdrant.deleteCollection(COLLECTION_NAME);
+        console.log("🗑️ Old collection deleted.");
+      } catch (deleteErr) {
+        console.log("⚠️ Collection deletion failed, proceeding with creation...");
+      }
+      
+      await qdrant.createCollection(COLLECTION_NAME, {
+        vectors: {
+          size: VECTOR_SIZE,
+          distance: "Cosine",
+        },
+      });
+      console.log("✅ Collection recreated with correct dimensions.");
+    }
+    
     isQdrantAvailable = true;
   } catch (err) {
     console.log("⚠️ Collection does not exist. Creating...");
