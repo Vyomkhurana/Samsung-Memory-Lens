@@ -258,7 +258,7 @@ class SimilarResultsWindow extends StatelessWidget {
                             children: [
                               // Image Display
                               Expanded(
-                                flex: 3,
+                                flex: 4,
                                 child: Stack(
                                   children: [
                                     GestureDetector(
@@ -342,26 +342,26 @@ class SimilarResultsWindow extends StatelessWidget {
                                         ),
                                       ),
                                     ),
-                                    // TOP MATCH Badge
+                                    // TOP MATCH Badge - Small Corner Badge
                                     if (isTopMatch)
                                       Positioned(
-                                        top: 8,
-                                        right: 8,
+                                        top: 4,
+                                        right: 4,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
+                                            horizontal: 4,
+                                            vertical: 2,
                                           ),
                                           decoration: BoxDecoration(
                                             gradient: const LinearGradient(
                                               colors: [Color(0xFF1976D2), Color(0xFF1565C0)],
                                             ),
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius: BorderRadius.circular(6),
                                             boxShadow: [
                                               BoxShadow(
                                                 color: Colors.black.withOpacity(0.3),
-                                                blurRadius: 4,
-                                                offset: const Offset(0, 2),
+                                                blurRadius: 2,
+                                                offset: const Offset(0, 1),
                                               ),
                                             ],
                                           ),
@@ -371,14 +371,14 @@ class SimilarResultsWindow extends StatelessWidget {
                                               Icon(
                                                 Icons.star,
                                                 color: Colors.white,
-                                                size: 12,
+                                                size: 8,
                                               ),
-                                              SizedBox(width: 2),
+                                              SizedBox(width: 1),
                                               Text(
                                                 'TOP',
                                                 style: TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 10,
+                                                  fontSize: 7,
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),
@@ -392,59 +392,48 @@ class SimilarResultsWindow extends StatelessWidget {
                               
                               // Image Details
                               Expanded(
-                                flex: 2,
+                                flex: 1,
                                 child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
+                                  padding: const EdgeInsets.all(4.0),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // Match Score
+                                      // Match Score - Compact Badge
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
+                                          horizontal: 4,
+                                          vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
                                           color: isTopMatch 
-                                              ? const Color(0xFF1976D2).withOpacity(0.2)
+                                              ? const Color(0xFF1976D2).withOpacity(0.9)
                                               : (score >= 80 ? Colors.green : 
-                                                 score >= 60 ? Colors.orange : Colors.grey).withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: isTopMatch 
-                                                ? const Color(0xFF1976D2)
-                                                : (score >= 80 ? Colors.green : 
-                                                   score >= 60 ? Colors.orange : Colors.grey),
-                                            width: 1,
-                                          ),
+                                                 score >= 60 ? Colors.orange : Colors.grey).withOpacity(0.9),
+                                          borderRadius: BorderRadius.circular(4),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(
-                                              isTopMatch ? Icons.emoji_events : Icons.percent,
-                                              size: 14,
-                                              color: isTopMatch 
-                                                  ? const Color(0xFF1976D2)
-                                                  : (score >= 80 ? Colors.green : 
-                                                     score >= 60 ? Colors.orange : Colors.grey),
-                                            ),
-                                            const SizedBox(width: 4),
+                                            if (isTopMatch) ...[
+                                              Icon(
+                                                Icons.star,
+                                                size: 8,
+                                                color: Colors.white,
+                                              ),
+                                              const SizedBox(width: 2),
+                                            ],
                                             Text(
-                                              isTopMatch ? 'BEST MATCH' : '$score% match',
-                                              style: TextStyle(
-                                                color: isTopMatch 
-                                                    ? const Color(0xFF1976D2)
-                                                    : (score >= 80 ? Colors.green : 
-                                                       score >= 60 ? Colors.orange : Colors.grey),
+                                              isTopMatch ? 'TOP' : '$score%',
+                                              style: const TextStyle(
+                                                color: Colors.white,
                                                 fontWeight: FontWeight.bold,
-                                                fontSize: isTopMatch ? 10 : 11,
+                                                fontSize: 8,
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 2),
                                       
                                       // Tags
                                       if (result['tags'] != null) ...[
@@ -454,8 +443,8 @@ class SimilarResultsWindow extends StatelessWidget {
                                               .take(3)
                                               .map((tag) => Container(
                                                     padding: const EdgeInsets.symmetric(
-                                                      horizontal: 4,
-                                                      vertical: 2,
+                                                      horizontal: 3,
+                                                      vertical: 1,
                                                     ),
                                                     decoration: BoxDecoration(
                                                       color: Colors.blue.withOpacity(0.2),
@@ -465,7 +454,7 @@ class SimilarResultsWindow extends StatelessWidget {
                                                       tag.toString(),
                                                       style: const TextStyle(
                                                         color: Colors.blue,
-                                                        fontSize: 8,
+                                                        fontSize: 7,
                                                       ),
                                                     ),
                                                   ))
