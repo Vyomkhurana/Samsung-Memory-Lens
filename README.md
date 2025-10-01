@@ -1,16 +1,16 @@
-# 🚀 Samsung Memory Lens
-**Voice-Powered Image Search App - Samsung PRISM GenAI Hackathon 2025**
+# Samsung Memory Lens
+**Voice-Powered Image Search - Samsung PRISM GenAI Hackathon 2025**
 
 [![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![AWS](https://img.shields.io/badge/AWS-232F3E?style=for-the-badge&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com/)
 
-## 🎯 **Project Overview**
+## **Project Overview**
 
 Samsung Memory Lens revolutionizes photo search by enabling users to find images using natural voice commands. Simply speak "show me red cars" or "find sunset photos" and watch our AI-powered semantic search find exactly what you're looking for.
 
-### **✨ Key Innovation**
+### **Key Innovation**
 - **Natural Language Processing**: Search photos conversationally, not with keywords
 - **Samsung Design Language**: Professional UI following Samsung's design principles  
 - **Voice-First Interface**: Hands-free photo discovery with speech recognition
@@ -19,7 +19,24 @@ Samsung Memory Lens revolutionizes photo search by enabling users to find images
 
 ---
 
-## 🏆 **Samsung PRISM GenAI Hackathon 2025**
+## **Project Assumptions**
+
+### **Samsung Gallery Integration**
+This project demonstrates a **next-generation Samsung Gallery feature** that seamlessly integrates voice-powered semantic search into Samsung's native photo management experience. 
+
+### **Core Assumptions**
+- **Direct Gallery Access**: The application operates with full integration into Samsung Gallery, providing direct access to user photos without requiring manual uploads
+- **Native Samsung Feature**: This represents an evolution of Samsung Gallery where voice search becomes a core functionality, similar to how Samsung Voice Assistant integrates across Samsung ecosystem
+- **System-Level Integration**: The voice search capability works at the OS level, processing photos automatically as they are captured or saved to the device
+- **Real-time Indexing**: Photos are automatically analyzed and indexed in the background, ensuring instant search results without user intervention
+- **Seamless User Experience**: Users interact with this feature as a natural extension of Samsung Gallery, with voice search accessible through the familiar gallery interface
+
+### **Technical Implementation Scope**
+For demonstration purposes, this prototype includes a photo upload mechanism to simulate the direct gallery integration that would exist in the production Samsung Gallery feature.
+
+---
+
+## **Samsung PRISM GenAI Hackathon 2025**
 
 This project demonstrates innovative AI integration for intuitive user experiences, showcasing:
 - **Generative AI**: OpenAI embeddings for semantic understanding
@@ -30,23 +47,23 @@ This project demonstrates innovative AI integration for intuitive user experienc
 
 ---
 
-## 📱 **Quick Start - APK Download**
+## **Quick Start - APK Download**
 
 ### **For Jury Members & Testers:**
 
-1. **📥 Download APK**: [Samsung-Memory-Lens-v1.0.apk](https://github.com/Vyomkhurana/Samsung-Memory-Lens/releases) (43.9 MB)
+1. **Download APK**: [Samsung-Memory-Lens-v1.0.apk](https://github.com/Vyomkhurana/Samsung-Memory-Lens/releases) (43.9 MB)
 
-2. **🔧 Install on Android**:
+2. **Install on Android**:
    - Open **Settings** → **Security** → Enable **"Install from Unknown Sources"**
    - Download and tap the APK file to install
    - Grant permissions: **Camera**, **Storage**, **Microphone**
 
-3. **🎤 Test Voice Search**:
+3. **Test Voice Search**:
    - Tap the blue microphone button
    - Say: *"Show me cars"*, *"Find people"*, *"Look for text"*
    - View intelligent results with confidence scores
 
-4. **📤 Upload Photos**:
+4. **Upload Photos**:
    - Tap **"Upload Photos"** button
    - Select images from your gallery
    - Wait for AI processing to complete
@@ -55,26 +72,26 @@ This project demonstrates innovative AI integration for intuitive user experienc
 
 ---
 
-## 🛠️ **Technology Architecture**
+## **Technology Architecture**
 
 ### **Frontend Stack**
 ```
 Flutter Framework (Dart)
-├── 🎤 Speech-to-Text Recognition
-├── 📱 Samsung Design System
-├── 🖼️ Photo Gallery Integration  
-├── 🔊 Voice Feedback System
-└── 🌐 Backend API Integration
+├── Speech-to-Text Recognition
+├── Samsung Design System
+├── Photo Gallery Integration  
+├── Voice Feedback System
+└── Backend API Integration
 ```
 
 ### **Backend Stack**
 ```
 Node.js + Express Server
-├── 🧠 OpenAI Embeddings API (text-embedding-3-small)
-├── 👁️ AWS Rekognition (Object/Text/Celebrity Detection)  
-├── 🗄️ Qdrant Vector Database (Similarity Search)
-├── 🔄 Real-time Image Processing
-└── 📊 Smart Result Ranking
+├── OpenAI Embeddings API (text-embedding-3-small)
+├── AWS Rekognition (Object/Text/Celebrity Detection)  
+├── Qdrant Vector Database (Similarity Search)
+├── Real-time Image Processing
+└── Smart Result Ranking
 ```
 
 ### **AI Pipeline**
@@ -86,7 +103,7 @@ Qdrant Search → Similarity Matching → Confidence Scoring → Ranked Results
 
 ---
 
-## 🚀 **Full Development Setup**
+## **Full Development Setup**
 
 ### **Prerequisites**
 - **Node.js** v18+ ([Download](https://nodejs.org/))
@@ -94,13 +111,13 @@ Qdrant Search → Similarity Matching → Confidence Scoring → Ranked Results
 - **Android Studio** or **VS Code** with Flutter extensions
 - **Git** for version control
 
-### **1. 📂 Clone Repository**
+### **1. Clone Repository**
 ```bash
 git clone https://github.com/Vyomkhurana/Samsung-Memory-Lens.git
 cd Samsung-Memory-Lens
 ```
 
-### **2. 🖥️ Backend Setup**
+### **2. Backend Setup**
 ```bash
 cd backend
 
@@ -136,7 +153,7 @@ npm run dev
 # Health check: http://localhost:3000/health
 ```
 
-### **3. 📱 Flutter App Setup**
+### **3. Flutter App Setup**
 ```bash
 # Install Flutter dependencies
 flutter pub get
@@ -148,7 +165,7 @@ flutter run
 flutter build apk --release
 ```
 
-### **4. 🧪 Testing the App**
+### **4. Testing the App**
 
 1. **Start Backend**: Ensure Node.js server is running on port 3000
 2. **Launch App**: Run Flutter app on device/emulator  
@@ -158,9 +175,9 @@ flutter build apk --release
 
 ---
 
-## 🎯 **Key Features Demonstration**
+## **Key Features Demonstration**
 
-### **🎤 Voice Search Examples**
+### **Voice Search Examples**
 ```
 User Says: "Show me cars"
 → Finds: Vehicle photos with confidence scores
@@ -172,13 +189,13 @@ User Says: "Look for text in images"
 → Finds: Screenshots, documents, signs with OCR text
 ```
 
-### **🧠 Semantic Understanding**
+### **Semantic Understanding**
 - **"Red sports car"** finds: Ferrari, Lamborghini, racing vehicles
 - **"Sunset beach"** finds: Ocean sunsets, coastal evening photos  
 - **"Food from restaurants"** finds: Dining photos, menu images
 - **"My dog playing"** finds: Pet activity photos, outdoor scenes
 
-### **📊 Smart Results**
+### **Smart Results**
 - **TOP MATCH**: Highlighted with blue border and star badge
 - **Confidence Scores**: 90%+ (Excellent), 70%+ (Good), 50%+ (Fair)
 - **Visual Hierarchy**: Best matches shown first with larger previews
@@ -186,7 +203,7 @@ User Says: "Look for text in images"
 
 ---
 
-## 🎨 **Samsung Design System**
+## **Samsung Design System**
 
 ### **Visual Identity**
 - **Primary Color**: Samsung Blue (#1976D2)
@@ -217,7 +234,7 @@ User Says: "Look for text in images"
 
 ---
 
-## 🔧 **API Endpoints**
+## **API Endpoints**
 
 ### **Backend Services**
 ```
@@ -236,7 +253,7 @@ Voice Input → AWS Rekognition → Semantic Processing → Search Results
 
 ---
 
-## 🐛 **Troubleshooting**
+## **Troubleshooting**
 
 ### **Common Issues**
 
@@ -266,7 +283,7 @@ cd backend && npm run dev
 
 ---
 
-## 🏅 **Hackathon Submission**
+## **Hackathon Submission**
 
 ### **Innovation Highlights**
 1. **Voice-Powered Search**: Natural language photo discovery
@@ -290,7 +307,7 @@ cd backend && npm run dev
 
 ---
 
-## 🌟 **Future Enhancements**
+## **Future Enhancements**
 
 - **Multi-language Support**: Expand beyond English voice commands
 - **Advanced Filters**: Date, location, people-based filtering  
@@ -300,13 +317,13 @@ cd backend && npm run dev
 
 ---
 
-## 📄 **License**
+## **License**
 
 This project is submitted for **Samsung PRISM GenAI Hackathon 2025** and is available under the MIT License.
 
 ---
 
-## 🎯 **Ready to Test?**
+## **Ready to Test?**
 
 1. **[Download APK](https://github.com/Vyomkhurana/Samsung-Memory-Lens/releases)** 
 2. **Install on Android device**
@@ -314,6 +331,4 @@ This project is submitted for **Samsung PRISM GenAI Hackathon 2025** and is avai
 4. **Upload some photos** using the upload button
 5. **Tap the mic** and say "show me cars" or "find people"
 6. **Experience the magic** of voice-powered photo search!
-
-**Built with ❤️ for Samsung PRISM GenAI Hackathon 2025**
 
