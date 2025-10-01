@@ -19,10 +19,6 @@ Samsung Memory Lens revolutionizes photo search by enabling users to find images
 
 <img width="500" height="1000" alt="MEMORY LENS" src="https://github.com/user-attachments/assets/01631e9a-9ca0-4448-b55c-659b3d08c9ce" />
 
-<img width="1920" height="1080" alt="SAMSUNG - MEMORY LENS (12)" src="https://github.com/user-attachments/assets/346f26b3-faa1-4f0a-9d35-a57446e9746b" />
-<img width="1920" height="1080" alt="SAMSUNG - MEMORY LENS (13)" src="https://github.com/user-attachments/assets/5cb7c826-8a10-4dff-9d15-31291f7e1be4" />
-
-
 ## **Hackathon Submission**
 
 **Demo Video** : https://youtu.be/qyNPU4weXrQ?si=GzbHqBmf7CauhPgR
@@ -181,16 +177,8 @@ flutter build apk --release
 ## **Key Features Demonstration**
 
 ### **Voice Search Examples**
-```
-User Says: "Show me cars"
-→ Finds: Vehicle photos with confidence scores
-
-User Says: "Find people at parties"  
-→ Finds: Group photos, celebrations, gatherings
-
-User Says: "Look for text in images"
-→ Finds: Screenshots, documents, signs with OCR text
-```
+<img width="1920" height="1080" alt="SAMSUNG - MEMORY LENS (12)" src="https://github.com/user-attachments/assets/346f26b3-faa1-4f0a-9d35-a57446e9746b" />
+<img width="1920" height="1080" alt="SAMSUNG - MEMORY LENS (13)" src="https://github.com/user-attachments/assets/5cb7c826-8a10-4dff-9d15-31291f7e1be4" />
 
 ### **Semantic Understanding**
 - **"Red sports car"** finds: Ferrari, Lamborghini, racing vehicles
