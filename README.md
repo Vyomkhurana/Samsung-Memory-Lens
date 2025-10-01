@@ -289,7 +289,7 @@ cd backend && npm run dev
 
 ## **License**
 
-This project is submitted for **Samsung PRISM GenAI Hackathon 2025** and is available under the MIT License.
+This project is submitted for **Samsung PRISM GenAI Hackathon 2025** .
 
 ---
 
