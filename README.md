@@ -17,7 +17,8 @@ Samsung Memory Lens revolutionizes photo search by enabling users to find images
 - **Semantic Understanding**: AI comprehends context and meaning, not just exact matches
 - **Real-time Results**: Instant search with confidence scoring and smart ranking
 
----
+<img width="500" height="1000" alt="MEMORY LENS" src="https://github.com/user-attachments/assets/01631e9a-9ca0-4448-b55c-659b3d08c9ce" />
+
 
 ## **Hackathon Submission**
 
@@ -68,6 +69,9 @@ For demonstration purposes, this prototype includes a photo upload mechanism to 
 ---
 
 ## **Technology Architecture**
+
+<img width="3840" height="2311" alt="memorylens" src="https://github.com/user-attachments/assets/032268f7-46eb-45d5-9f9b-4911ae43615e" />
+
 
 ### **Frontend Stack**
 ```
