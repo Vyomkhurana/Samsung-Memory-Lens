@@ -176,7 +176,6 @@ flutter build apk --release
 
 ## **Key Features Demonstration**
 
-### **Voice Search Examples**
 <img width="1920" height="1080" alt="SAMSUNG - MEMORY LENS (12)" src="https://github.com/user-attachments/assets/346f26b3-faa1-4f0a-9d35-a57446e9746b" />
 <img width="1920" height="1080" alt="SAMSUNG - MEMORY LENS (13)" src="https://github.com/user-attachments/assets/5cb7c826-8a10-4dff-9d15-31291f7e1be4" />
 
@@ -212,7 +211,7 @@ flutter build apk --release
 
 ---
 
-## 📊 **Performance Metrics**
+## **Performance Metrics**
 
 | Metric | Performance |
 |--------|-------------|
