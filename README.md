@@ -19,6 +19,14 @@ Samsung Memory Lens revolutionizes photo search by enabling users to find images
 
 ---
 
+---
+
+## **Hackathon Submission**
+
+**Demo Video** : https://drive.google.com/file/d/1cwYzNGIou-wlJBlvsGKUhCUUlX5uTjx-/view?usp=sharing
+
+---
+
 ## **Project Assumptions**
 
 ### **Samsung Gallery Integration**
@@ -34,18 +42,7 @@ This project demonstrates a **next-generation Samsung Gallery feature** that sea
 ### **Technical Implementation Scope**
 For demonstration purposes, this prototype includes a photo upload mechanism to simulate the direct gallery integration that would exist in the production Samsung Gallery feature.
 
----
 
-## **Samsung PRISM GenAI Hackathon 2025**
-
-This project demonstrates innovative AI integration for intuitive user experiences, showcasing:
-- **Generative AI**: OpenAI embeddings for semantic understanding
-- **Computer Vision**: AWS Rekognition for image analysis  
-- **Voice Technology**: Flutter speech-to-text integration
-- **Vector Search**: Qdrant database for similarity matching
-- **Samsung UX**: Premium mobile interface with Samsung blue theme
-
----
 
 ## **Quick Start - APK Download**
 
@@ -281,31 +278,6 @@ cd backend && npm run dev
 - Ensure Android 6.0+ device
 - Clear download cache and retry
 
----
-
-## **Hackathon Submission**
-
-### **Innovation Highlights**
-1. **Voice-Powered Search**: Natural language photo discovery
-2. **Semantic AI**: Understanding context beyond keywords  
-3. **Samsung Integration**: Professional design language
-4. **Real-time Processing**: Instant results with confidence scoring
-5. **Scalable Architecture**: Cloud-ready backend infrastructure
-
-### **Technical Excellence**
-- **Clean Code**: Well-structured, maintainable codebase
-- **Error Handling**: Comprehensive error management  
-- **Security**: Proper API key management and validation
-- **Performance**: Optimized vector search and caching
-- **Documentation**: Professional README and code comments
-
-### **User Experience**
-- **Intuitive Interface**: Easy-to-use voice-first design
-- **Visual Feedback**: Clear loading states and progress indicators
-- **Accessibility**: Voice commands reduce manual interaction
-- **Professional Polish**: Samsung-grade UI/UX quality
-
----
 
 ## **Future Enhancements**
 
