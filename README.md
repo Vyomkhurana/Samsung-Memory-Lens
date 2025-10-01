@@ -19,6 +19,9 @@ Samsung Memory Lens revolutionizes photo search by enabling users to find images
 
 <img width="500" height="1000" alt="MEMORY LENS" src="https://github.com/user-attachments/assets/01631e9a-9ca0-4448-b55c-659b3d08c9ce" />
 
+<img width="1920" height="1080" alt="10" src="https://github.com/user-attachments/assets/de1ec258-f59c-4291-bdbe-5bef6aab3d67" />
+
+<img width="1920" height="1080" alt="11" src="https://github.com/user-attachments/assets/1b7b5c0c-9daf-4abf-8bbb-07440efc4f02" />
 
 ## **Hackathon Submission**
 
