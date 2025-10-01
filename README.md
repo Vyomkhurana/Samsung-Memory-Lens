@@ -19,8 +19,6 @@ Samsung Memory Lens revolutionizes photo search by enabling users to find images
 
 ---
 
----
-
 ## **Hackathon Submission**
 
 **Demo Video** : https://drive.google.com/file/d/1cwYzNGIou-wlJBlvsGKUhCUUlX5uTjx-/view?usp=sharing
