@@ -273,6 +273,7 @@ cd backend && npm run dev
 - Grant microphone permission in Android settings
 - Test in quiet environment  
 - Speak clearly and naturally
+- NOTE : Kindly note that for the backend to start (for the first time) it may take upto 30-40 seconds because of free deployment (ONRENDER )  
 
 **No Search Results:**
 - Upload photos first using "Upload Photos" button
