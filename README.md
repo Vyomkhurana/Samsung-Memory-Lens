@@ -1,7 +1,5 @@
-# Samsung Memory Lens
+# Memory Lens
 **Cloud-Enabled Intelligent Memory Recall Framework (IMRF) using AWS and OPENAI**
----
-**TEAM NAME - CTRL+ALT+DELETE**
 ---
 [![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -10,18 +8,18 @@
 
 ## **Project Overview**
 
-Samsung Memory Lens revolutionizes photo search by enabling users to find images using natural voice commands. Simply speak "show me red cars" or "find sunset photos" and watch our AI-powered semantic search find exactly what you're looking for.
+Memory Lens revolutionizes photo search by enabling users to find images using natural voice commands. Simply speak "show me red cars" or "find sunset photos" and watch our AI-powered semantic search find exactly what you're looking for.
 
 ### **Key Innovation**
 - **Natural Language Processing**: Search photos conversationally, not with keywords
-- **Samsung Design Language**: Professional UI following Samsung's design principles  
+- **Modern Design Language**: Professional UI following modern design principles  
 - **Voice-First Interface**: Hands-free photo discovery with speech recognition
 - **Semantic Understanding**: AI comprehends context and meaning, not just exact matches
 - **Real-time Results**: Instant search with confidence scoring and smart ranking
 
 <img width="500" height="1000" alt="MEMORY LENS" src="https://github.com/user-attachments/assets/01631e9a-9ca0-4448-b55c-659b3d08c9ce" />
 
-## **Hackathon Submission**
+## **Demo**
 
 **Demo Video** : https://youtu.be/qyNPU4weXrQ?si=GzbHqBmf7CauhPgR
 (Please note, the video is UNLISTED hence the video can only be accessed through the above link)
@@ -30,26 +28,26 @@ Samsung Memory Lens revolutionizes photo search by enabling users to find images
 
 ## **Project Assumptions**
 
-### **Samsung Gallery Integration**
-This project demonstrates a **next-generation Samsung Gallery feature** that seamlessly integrates voice-powered semantic search into Samsung's native photo management experience. 
+### **Gallery Integration**
+This project demonstrates a **next-generation photo gallery feature** that seamlessly integrates voice-powered semantic search into a native photo management experience. 
 
 ### **Core Assumptions**
-- **Direct Gallery Access**: The application operates with full integration into Samsung Gallery, providing direct access to user photos without requiring manual uploads
-- **Native Samsung Feature**: This represents an evolution of Samsung Gallery where voice search becomes a core functionality, similar to how Samsung Voice Assistant integrates across Samsung ecosystem
+- **Direct Gallery Access**: The application operates with full integration into photo galleries, providing direct access to user photos without requiring manual uploads
+- **Native Gallery Feature**: This represents an evolution of photo galleries where voice search becomes a core functionality, integrated seamlessly into the user experience
 - **System-Level Integration**: The voice search capability works at the OS level, processing photos automatically as they are captured or saved to the device
 - **Real-time Indexing**: Photos are automatically analyzed and indexed in the background, ensuring instant search results without user intervention
-- **Seamless User Experience**: Users interact with this feature as a natural extension of Samsung Gallery, with voice search accessible through the familiar gallery interface
+- **Seamless User Experience**: Users interact with this feature as a natural extension of their photo gallery, with voice search accessible through the familiar gallery interface
 
 ### **Technical Implementation Scope**
-For demonstration purposes, this prototype includes a photo upload mechanism to simulate the direct gallery integration that would exist in the production Samsung Gallery feature.
+For demonstration purposes, this prototype includes a photo upload mechanism to simulate the direct gallery integration that would exist in the production version.
 
 
 
 ## **Quick Start - APK Download**
 
-### **For Jury Members & Testers:**
+### **For Testers:**
 
-1. **Download APK**: [Samsung-Memory-Lens-v1.0.apk](https://github.com/Vyomkhurana/Samsung-Memory-Lens/releases) (43.9 MB)
+1. **Download APK**: [Memory-Lens-v1.0.apk](https://github.com/Vyomkhurana/Samsung-Memory-Lens/releases) (43.9 MB)
 
 2. **Install on Android**:
    - Open **Settings** → **Security** → Enable **"Install from Unknown Sources"**
@@ -79,7 +77,7 @@ For demonstration purposes, this prototype includes a photo upload mechanism to 
 ```
 Flutter Framework (Dart)
 ├── Speech-to-Text Recognition
-├── Samsung Design System
+├── Modern Design System
 ├── Photo Gallery Integration  
 ├── Voice Feedback System
 └── Backend API Integration
@@ -195,11 +193,11 @@ flutter build apk --release
 
 ---
 
-## **Samsung Design System**
+## **Design System**
 
 ### **Visual Identity**
-- **Primary Color**: Samsung Blue (#1976D2)
-- **Typography**: Samsung One font family  
+- **Primary Color**: Primary Blue (#1976D2)
+- **Typography**: Modern sans-serif font family  
 - **Components**: Glassmorphism cards, rounded corners
 - **Animations**: Smooth 150ms transitions, easing curves
 - **Spacing**: 8px grid system, consistent margins
@@ -287,7 +285,7 @@ cd backend && npm run dev
 
 ## **License**
 
-This project is submitted for **Samsung PRISM GenAI Hackathon 2025** .
+This project demonstrates AI-powered voice search for photo galleries.
 
 ---
 
